@@ -201,8 +201,15 @@ export function trafficLight(B, x, z, y, out) {
 const glassMat = new THREE.MeshStandardMaterial({ color: '#a9d4ee', roughness: 0.05, metalness: 0.6, transparent: true, opacity: 0.35, depthWrite: false });
 export function glassPane(B, x0, y0, z0, x1, y1, z1, list) {
   const box = B.world.addBox(x0, y0, z0, x1, y1, z1, F_SOLID | F_BULLET | F_GLASS);
-  const m = new THREE.Mesh(G.box, glassMat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); m.scale.set(Math.max(0.03, x1 - x0), y1 - y0, Math.max(0.03, z1 - z0));
-  m.renderOrder = 3; B.dynamic.add(m); box.data = { type: 'glass', mesh: m }; list.push(box);
+  const q = (B.glassQueue ||= []); const idx = q.length;
+  q.push(M4.compose(V.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), Q.identity(), S.set(Math.max(0.03, x1 - x0), y1 - y0, Math.max(0.03, z1 - z0))).clone());
+  box.data = { type: 'glass', hide: () => { const im = B.glassInst; if (!im) return; im.setMatrixAt(idx, new THREE.Matrix4().makeScale(0, 0, 0)); im.instanceMatrix.needsUpdate = true; } };
+  list.push(box);
+}
+// All panes render as ONE instanced draw call; broken panes are scaled to zero.
+export function finalizeGlass(B) {
+  const q = B.glassQueue; if (!q || !q.length) return;
+  const im = new THREE.InstancedMesh(G.box, glassMat, q.length); q.forEach((m, i) => im.setMatrixAt(i, m)); im.renderOrder = 3; im.computeBoundingSphere(); B.dynamic.add(im); B.glassInst = im;
 }
 
 // Explosive barrel (dynamic)

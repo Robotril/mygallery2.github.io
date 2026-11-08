@@ -276,7 +276,7 @@ export class Match {
     this.explode(b.x, b.y, b.z, 6.5, 140, owner, 'frag');
   }
   breakGlass(box) {
-    if (box.dead) return; box.dead = true; if (box.data?.mesh) box.data.mesh.visible = false;
+    if (box.dead) return; box.dead = true; box.data?.hide?.();
     const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2, cz = (box.z0 + box.z1) / 2;
     this.effects.impact(cx, cy, cz, 0, 0, 0, 'glass'); audio.glass(V2.set(cx, cy, cz)); this.netBroadcast({ t: 'glass', i: this.map.glass.indexOf(box) });
   }

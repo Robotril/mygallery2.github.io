@@ -116,7 +116,7 @@ export class NetSync {
       case 'boom': if (msg.stun) { m.effects.flashBurst(msg.x, msg.y, msg.z); audio.explosion(V.set(msg.x, msg.y, msg.z)); } else m.explode(msg.x, msg.y, msg.z, msg.r, 0, null, 'frag'); break;
       case 'smoke': m.effects.smokeCloud(msg.x, msg.y, msg.z, m.world); audio.smoke(V.set(msg.x, msg.y, msg.z)); break;
       case 'stun': if (L) { L.stun = msg.s; m.events.emit('stunned', msg.s); } break;
-      case 'glass': { const g = m.map.glass[msg.i]; if (g && !g.dead) { g.dead = true; g.data.mesh.visible = false; m.effects.impact((g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2, (g.z0 + g.z1) / 2, 0, 0, 0, 'glass'); audio.glass(V.set(g.x0, g.y0, g.z0)); } break; }
+      case 'glass': { const g = m.map.glass[msg.i]; if (g && !g.dead) { g.dead = true; g.data.hide?.(); m.effects.impact((g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2, (g.z0 + g.z1) / 2, 0, 0, 0, 'glass'); audio.glass(V.set(g.x0, g.y0, g.z0)); } break; }
       case 'barrel': { const b = m.map.interactives[msg.i]; if (b && !b.dead) { b.dead = true; b.mesh.visible = false; b.box.dead = true; } break; }
       case 'loot+': m.loot.add(msg.it); break;
       case 'loot-': m.loot.remove(msg.i); break;

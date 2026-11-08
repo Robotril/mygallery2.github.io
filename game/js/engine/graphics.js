@@ -17,6 +17,7 @@ export const PRESETS = {
   ultra: { name: 'Ultra', pixelRatio: 2, shadows: true, shadowSize: 4096, bloom: true, ao: true, drawDist: 400, fogMul: 0.85, texSize: 1024, aniso: 8, bump: true, lowMat: false, terrainSeg: 1.5, waterSeg: 240, waterDetail: 1.2, particles: 1.3, pedestrians: 30, traffic: 22, clouds: 22, antialias: true },
 };
 export const PRESET_ORDER = ['low', 'medium', 'high', 'ultra'];
+const PIXEL_BUDGET = { low: 0.55e6, medium: 1.15e6, high: 2.1e6, ultra: 3.7e6 };
 
 // Probe the device and choose a preset. Returns {preset, reason, gpu}.
 export function detectPreset(renderer) {
@@ -35,7 +36,10 @@ export function detectPreset(renderer) {
   if (cores >= 8) score += 1; if (mem >= 8) score += 1; if (mem <= 2 || cores <= 2) score -= 2;
   if (maxTex < 8192) score -= 1;
   if (mobile) score -= 2;
-  const preset = score >= 4 ? 'ultra' : score >= 2 ? 'high' : score >= 0 ? 'medium' : 'low';
+  // Conservative: Auto never picks Ultra (ambient occlusion is expensive); integrated GPUs get Medium at most.
+  const integrated = /intel|apple gpu|mali|adreno|powervr|uhd|iris/.test(g) && !/apple m[1-4] (pro|max|ultra)/.test(g);
+  let preset = score >= 4 ? 'high' : score >= 1 ? 'medium' : 'low';
+  if ((integrated || mobile) && preset === 'high') preset = 'medium';
   return { preset, reason: `${mobile ? 'Mobile' : 'Desktop'} · ${cores} cores · ${mem}GB · score ${score}`, gpu };
 }
 
@@ -73,7 +77,9 @@ export class Graphics {
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    const pr = Math.min(window.devicePixelRatio || 1, this.q.pixelRatio) * this.renderScale * this.dynScale;
+    let pr = Math.min(window.devicePixelRatio || 1, this.q.pixelRatio) * this.renderScale * this.dynScale;
+    const budget = PIXEL_BUDGET[this.presetId] || 1.3e6; // cap total rendered pixels (big win on high-DPI / 4K screens)
+    if (w * h * pr * pr > budget) pr = Math.sqrt(budget / (w * h));
     this.renderer.setPixelRatio(Math.max(0.4, pr)); this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     this.vmCamera.aspect = w / h; this.vmCamera.updateProjectionMatrix();
@@ -135,15 +141,24 @@ export class Graphics {
   }
 
   // FPS tracking with automatic quality adaptation (auto mode only)
+  // Live downgrade during a match: applies resolution, shadows, post-processing and draw distance.
+  downgradeTo(id, scene) {
+    const P = PRESETS[id]; const hadShadows = this.q.shadows; this.presetId = id;
+    Object.assign(this.q, { pixelRatio: P.pixelRatio, bloom: P.bloom, ao: P.ao, drawDist: P.drawDist, particles: P.particles, name: P.name, shadows: P.shadows && hadShadows, shadowSize: P.shadowSize });
+    if (hadShadows && !this.q.shadows) { this.renderer.shadowMap.enabled = false; if (this.sun) this.sun.castShadow = false; scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); }
+    else if (this.sun && this.q.shadows && this.sun.shadow.mapSize.x > P.shadowSize) { this.sun.shadow.mapSize.set(P.shadowSize, P.shadowSize); this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; }
+    this.dynScale = 1; this.resize(); this.setupComposer(scene);
+  }
   trackFrame(dt, now) {
     if (dt <= 0) return;
-    this.fpsSamples.push(1 / dt); if (this.fpsSamples.length > 90) this.fpsSamples.shift();
-    if (this.fpsSamples.length >= 60) this.fps = this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length;
-    if (now - this.lastAdjust < 4 || this.fpsSamples.length < 90) return null;
-    // dynamic resolution first, then preset drop
-    if (this.fps < 45 && this.dynScale > 0.65) { this.dynScale = Math.max(0.65, this.dynScale - 0.1); this.resize(); this.lastAdjust = now; this.fpsSamples.length = 0; return 'res'; }
-    if (this.fps > 58 && this.dynScale < 1) { this.dynScale = Math.min(1, this.dynScale + 0.05); this.resize(); this.lastAdjust = now; this.fpsSamples.length = 0; return 'res'; }
-    if (this.autoMode && this.fps < 32 && this.dynScale <= 0.66) {
+    this.fpsSamples.push(1 / dt); if (this.fpsSamples.length > 60) this.fpsSamples.shift();
+    if (this.fpsSamples.length >= 30) this.fps = this.fpsSamples.length / this.fpsSamples.reduce((a, b) => a + 1 / b, 0);
+    if (now - this.lastAdjust < 1.5 || this.fpsSamples.length < 45) return null;
+    // very slow: drop a whole preset immediately (auto mode); otherwise scale resolution first
+    if (this.autoMode && this.fps < 24) { const i = PRESET_ORDER.indexOf(this.presetId); if (i > 0) { this.lastAdjust = now; this.fpsSamples.length = 0; return PRESET_ORDER[i - 1]; } }
+    if (this.fps < 50 && this.dynScale > 0.55) { this.dynScale = Math.max(0.55, this.dynScale - 0.12); this.resize(); this.lastAdjust = now; this.fpsSamples.length = 0; return 'res'; }
+    if (this.fps > 58 && this.dynScale < 1) { this.dynScale = Math.min(1, this.dynScale + 0.05); this.resize(); this.lastAdjust = now + 2; this.fpsSamples.length = 0; return 'res'; }
+    if (this.autoMode && this.fps < 40 && this.dynScale <= 0.56) {
       const i = PRESET_ORDER.indexOf(this.presetId);
       if (i > 0) { this.lastAdjust = now; this.fpsSamples.length = 0; return PRESET_ORDER[i - 1]; }
     }

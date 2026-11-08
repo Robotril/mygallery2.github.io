@@ -5,7 +5,7 @@ import { WorldBuilder } from './builder.js';
 import * as P from './props.js';
 import { makeNoise2D, mulberry32, smoothstep, clamp } from '../core/util.js';
 import { makeWaterMaterial, depthTextureFromWorld } from './water.js';
-import { signTexture } from '../engine/textures.js';
+import { signTexture, signAtlas } from '../engine/textures.js';
 
 const n2 = makeNoise2D(11);
 const shoreZ = (x) => 72 + 6 * Math.sin(x * 0.02) + 3 * Math.sin(x * 0.06 + 1);
@@ -232,7 +232,7 @@ export function buildBeach(scene, quality, seed = 1) {
   // random outdoor loot
   for (let i = 0; i < 40; i++) { const x = -170 + r() * 340, z = -170 + r() * 230; const y = T(x, z); if (y > 0.2 && y < 12) loot(x, y, z, r() < 0.15 ? 2 : 0); }
 
-  B.finalize();
+  B.finalize(); finalizeSigns(info, B);
 
   info.env = {
     sky: { turbidity: 1.4, rayleigh: 2.2, mie: 0.0025, mieG: 0.8, elevation: 38, azimuth: 160 },
@@ -279,9 +279,22 @@ function heli(B, x, z, y) {
   B.box(x - 4.5, y + 2.9, z - 0.15, x + 3.5, y + 3.0, z + 0.15, 'metal', '#333', { collide: false }); B.box(x - 0.2, y + 2.9, z - 3.5, x + 0.1, y + 3.0, z + 3.2, 'metal', '#333', { collide: false });
 }
 
+// Signs are queued and merged into one atlas mesh (finalizeSigns); a few flickering ones stay separate.
 export function sign(info, B, text, color, x, y, z, w, rotY, bg) {
+  if (Math.random() >= 0.1) { (info.signQueue ||= []).push({ text, color, x, y, z, w, rotY, bg }); return null; }
   const tex = signTexture(text, color, bg || 'rgba(0,0,0,0)');
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), new THREE.MeshBasicMaterial({ map: tex, transparent: !bg, toneMapped: false, side: THREE.DoubleSide, depthWrite: !!bg }));
-  m.position.set(x, y, z); m.rotation.y = rotY; const base = bg ? 1.6 : 3; m.material.color.setScalar(base); B.dynamic.add(m); info.neon.push({ m, flicker: Math.random() < 0.25, base, t: Math.random() * 10 });
+  m.position.set(x, y, z); m.rotation.y = rotY; const base = bg ? 1.6 : 3; m.material.color.setScalar(base); B.dynamic.add(m); info.neon.push({ m, flicker: true, base, t: Math.random() * 10 });
   return m;
+}
+export function finalizeSigns(info, B) {
+  const q = info.signQueue; if (!q || !q.length) return;
+  const { tex, uvs } = signAtlas(q); const pos = [], uv = [], col = [], idx = [];
+  q.forEach((s, i) => {
+    const hw = s.w / 2, hh = s.w / 8, c = Math.cos(s.rotY), sn = Math.sin(s.rotY); const base = pos.length / 3; const k = s.bg ? 1.6 : 3; const [u0, v0, u1, v1] = uvs[i];
+    for (const [lx, ly, uu, vv] of [[-hw, -hh, u0, v0], [hw, -hh, u1, v0], [hw, hh, u1, v1], [-hw, hh, u0, v1]]) { pos.push(s.x + lx * c, s.y + ly, s.z - lx * sn); uv.push(uu, vv); col.push(k, k, k); }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeBoundingSphere();
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); m.renderOrder = 2; B.dynamic.add(m);
 }

@@ -8,7 +8,7 @@ export const SAVE_VERSION = 1;
 export const DEFAULT_SETTINGS = {
   graphics: 'auto', renderScale: 1, fov: 78, sensitivity: 1, adsSensitivity: 0.8, invertY: false,
   master: 0.8, sfx: 0.9, music: 0.5, ambience: 0.7, showFps: false, fullscreen: true, crosshairColor: '#ffffff',
-  touchSensitivity: 1, aimAssist: true, autoFire: false, buttonScale: 1, touchLayout: {}, holdToCrouch: false, holdToAim: true,
+  uiScale: 'auto', touchSensitivity: 1, aimAssist: true, autoFire: false, buttonScale: 1, touchLayout: {}, holdToCrouch: false, holdToAim: true,
 };
 
 function freshProfile() {
@@ -27,6 +27,8 @@ function freshProfile() {
     challenges: { day: '', list: [] },
     achievements: {},
     history: [],
+    tutorialDone: false,
+    tutorialOffered: false,
   };
 }
 

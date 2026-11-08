@@ -21,7 +21,36 @@ function part(g, mat, sx, sy, sz, x, y, z, parent, rx = 0, ry = 0, rz = 0) {
   m.castShadow = true; parent.add(m); return m;
 }
 
+// Collapse all parts into one mesh per material (third-person + loot). Keeps the muzzle/eject anchors.
+const _gm = new THREE.Matrix4(), _gn = new THREE.Matrix3(), _gv = new THREE.Vector3();
+let bakedGunMat = null;
+function mergeByMaterial(root, single = false) {
+  if (single) { // one vertex-colored mesh for the whole gun (loot): 1 draw call
+    root.traverse((o) => { if (o.isMesh) { const c = o.material.color; const g = o.geometry.clone(); const n = g.attributes.position.count; const col = new Float32Array(n * 3); for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); o.geometry = g; o.material = bakedGunMat ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.25 }); } });
+  }
+  root.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(); const buckets = new Map();
+  root.traverse((o) => { if (o.isMesh) { if (!buckets.has(o.material)) buckets.set(o.material, []); buckets.get(o.material).push(o); } });
+  for (const [mat, list] of buckets) {
+    let nv = 0, ni = 0; for (const m of list) { nv += m.geometry.attributes.position.count; ni += m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count; }
+    const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), idx = new Uint32Array(ni); let v = 0, i = 0;
+    for (const m of list) {
+      _gm.multiplyMatrices(inv, m.matrixWorld); _gn.getNormalMatrix(_gm); const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+      for (let k = 0; k < P.count; k++) { _gv.fromBufferAttribute(P, k).applyMatrix4(_gm); pos[(v + k) * 3] = _gv.x; pos[(v + k) * 3 + 1] = _gv.y; pos[(v + k) * 3 + 2] = _gv.z; _gv.fromBufferAttribute(N, k).applyMatrix3(_gn).normalize(); nrm[(v + k) * 3] = _gv.x; nrm[(v + k) * 3 + 1] = _gv.y; nrm[(v + k) * 3 + 2] = _gv.z; if (U) { uv[(v + k) * 2] = U.getX(k); uv[(v + k) * 2 + 1] = U.getY(k); } }
+      if (g.index) for (let k = 0; k < g.index.count; k++) idx[i++] = g.index.getX(k) + v; else for (let k = 0; k < P.count; k++) idx[i++] = v + k;
+      v += P.count; m.parent.remove(m);
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; root.add(mesh);
+  }
+  const empty = []; root.traverse((o) => { if (o.isGroup && o !== root && !o.children.length) empty.push(o); }); for (const o of empty) o.parent?.remove(o);
+}
+
 export function buildGunModel(weaponId, build = {}, opts = {}) {
+  const out = buildGunModelRaw(weaponId, build);
+  if (opts.merge) { mergeByMaterial(out.group, !!opts.single); out.mag = null; out.pump = null; out.bolt = null; out.dot = null; out.blade = null; }
+  return out;
+}
+function buildGunModelRaw(weaponId, build = {}) {
   const w = WEAPON_MAP[weaponId]; const md = w.model; const root = new THREE.Group(); root.name = weaponId;
   const skin = SKIN_MAP[build.skin || 'factory'];
   const skinTex = skin && skin.pattern !== 'none' ? skinTexture(skin) : null;

@@ -5,7 +5,7 @@ const KEYMAP = {
   KeyW: 'fwd', ArrowUp: 'fwd', KeyS: 'back', ArrowDown: 'back', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
   Space: 'jump', ShiftLeft: 'sprint', ShiftRight: 'sprint', ControlLeft: 'crouch', ControlRight: 'crouch', KeyC: 'crouch',
   KeyR: 'reload', KeyE: 'interact', KeyF: 'interact', Tab: 'scores', Escape: 'pause', KeyP: 'pause', Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyQ: 'tactical', KeyG: 'grenade',
-  KeyV: 'melee', KeyH: 'heal', Digit4: 'heal', KeyX: 'gear', KeyI: 'inspect', KeyM: 'map',
+  Enter: 'skip', NumpadEnter: 'skip', KeyV: 'melee', KeyH: 'heal', Digit4: 'heal', KeyX: 'gear', KeyI: 'inspect', KeyM: 'map',
 };
 
 export const TOUCH_BUTTONS = [
@@ -34,11 +34,11 @@ export class Input {
     this.touchAimToggle = false; this.onPointerLockLost = null; this.crouchToggle = false;
     window.addEventListener('keydown', (e) => this.key(e, true)); window.addEventListener('keyup', (e) => this.key(e, false));
     canvas.addEventListener('mousedown', (e) => this.mouse(e, true)); window.addEventListener('mouseup', (e) => this.mouse(e, false));
-    window.addEventListener('mousemove', (e) => { if (this.locked && this.enabled) { this.look.x += e.movementX; this.look.y += e.movementY; } });
+    window.addEventListener('mousemove', (e) => { if (this.enabled && !this.touchMode && (this.locked || this.lockFailed)) { this.look.x += e.movementX; this.look.y += e.movementY; } });
     window.addEventListener('wheel', (e) => { if (this.enabled) this.wheel += Math.sign(e.deltaY); }, { passive: true });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('pointerlockchange', () => {
-      const was = this.locked; this.locked = document.pointerLockElement === canvas;
+      const was = this.locked; this.locked = document.pointerLockElement === canvas; if (this.locked) this.lockFailed = false;
       if (was && !this.locked && this.enabled && !this.touchMode && this.onPointerLockLost) this.onPointerLockLost();
       if (!this.locked) { this.mouseFire = false; this.mouseAim = false; }
     });
@@ -53,11 +53,11 @@ export class Input {
   }
   mouse(e, down) {
     if (!this.enabled || this.touchMode) return;
-    if (down && !this.locked) { this.requestLock(); return; }
+    if (down && !this.locked) this.requestLock(); // capture the mouse, but never swallow the shot
     if (e.button === 0) this.mouseFire = down; if (e.button === 2) this.mouseAim = down;
     if (e.button === 1 && down) this.pressed.add('melee');
   }
-  requestLock() { if (this.touchMode) return; const quiet = (p) => { if (p && p.catch) p.catch(() => {}); return p; }; try { const p = this.canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => quiet(this.canvas.requestPointerLock())); } catch (e) { try { quiet(this.canvas.requestPointerLock()); } catch (e2) { /* unsupported */ } } }
+  requestLock() { if (this.touchMode) return; if (!this.canvas.requestPointerLock) { this.lockFailed = true; return; } const quiet = (p) => { if (p && p.catch) p.catch(() => { this.lockFailed = true; }); return p; }; try { const p = this.canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => quiet(this.canvas.requestPointerLock())); } catch (e) { try { quiet(this.canvas.requestPointerLock()); } catch (e2) { /* unsupported */ } } }
   exitLock() { if (document.pointerLockElement) document.exitPointerLock(); }
 
   // Read & clear per-frame input. Returns a snapshot used by the player controller.
@@ -74,7 +74,7 @@ export class Input {
       crouchHeld: h.has('crouch'), crouchPressed: P.has('crouch'), jump: P.has('jump'), jumpHeld: h.has('jump'),
       reload: P.has('reload'), interact: P.has('interact'), interactHeld: h.has('interact'), scores: h.has('scores'), pause: P.has('pause'),
       slot1: P.has('slot1'), slot2: P.has('slot2'), slot3: P.has('slot3'), nextSlot: P.has('slot') || this.wheel !== 0, grenade: P.has('grenade'), tactical: P.has('tactical'),
-      melee: P.has('melee'), heal: P.has('heal'), gear: P.has('gear'), inspect: P.has('inspect'), map: P.has('map'), mapHeld: h.has('map'),
+      melee: P.has('melee'), heal: P.has('heal'), gear: P.has('gear'), inspect: P.has('inspect'), map: P.has('map'), mapHeld: h.has('map'), skip: P.has('skip'),
       touch: this.touchMode, sens: this.touchMode ? s.touchSensitivity : s.sensitivity,
     };
     this.look.x = 0; this.look.y = 0; this.wheel = 0; P.clear();

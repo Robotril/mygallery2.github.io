@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import * as TX from '../engine/textures.js';
 import { F_ALL, F_SOLID, F_SIGHT, F_BULLET } from './collision.js';
 
-const CHUNK = 48;
+const CHUNK = 120;
 
 export class WorldBuilder {
   constructor(world, scene, quality) {

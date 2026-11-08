@@ -15,6 +15,8 @@ import { Room } from './net/room.js';
 import { NetSync } from './net/netsync.js';
 import { isTouchDevice, isMobileUA } from './core/util.js';
 import { itemLabel } from './game/loot.js';
+import { TrainingMode } from './game/training.js';
+MODE_CLASSES.training = TrainingMode;
 
 class App {
   constructor() {
@@ -33,6 +35,7 @@ class App {
     addEventListener('blur', () => { if (this.state === 'match' && this.match && this.match.role === 'solo' && !this.pauseEl) this.openPause(); });
     addEventListener('resize', () => this.checkOrientation()); this.checkOrientation();
     document.body.classList.toggle('is-touch', this.touch);
+    this.applyUiScale(); addEventListener('resize', () => this.applyUiScale());
   }
 
   async boot() {
@@ -43,6 +46,7 @@ class App {
     if (this.state !== 'menu') { requestAnimationFrame((t) => this.loop(t)); return; }
     document.getElementById('boot').classList.add('hidden');
     this.menu.show('main', false);
+    if (!getProfile().tutorialOffered && !new URLSearchParams(location.search).get('join')) this.menu.welcome();
     const qp = new URLSearchParams(location.search); const code = qp.get('join');
     if (code) { this.menu.custom.net = qp.get('net') === 'local' ? 'local' : 'online'; this.menu.show('custom'); const i = document.querySelector('#join-code'); if (i) i.value = code; this.joinRoom(code, this.menu.custom.net).catch((e) => { const err = document.querySelector('#join-err'); if (err) err.textContent = e.message; }); history.replaceState(null, '', location.pathname + (qp.get('peer') ? '?peer=' + encodeURIComponent(qp.get('peer')) : '')); }
     requestAnimationFrame((t) => this.loop(t));
@@ -53,6 +57,15 @@ class App {
     if (!initial && this.showcase) this.gfx.setupComposer(this.showcase.scene);
     audio.lowQuality = pid === 'low';
   }
+  // Interface/text size. Auto = larger on desktop screens so text is comfortable to read.
+  applyUiScale() {
+    const v = getProfile().settings.uiScale || 'auto';
+    let z = Number(v);
+    if (!z) z = this.touch ? 1 : innerWidth >= 1800 ? 1.4 : innerWidth >= 1440 ? 1.3 : innerWidth >= 1200 ? 1.22 : innerWidth >= 900 ? 1.12 : 1;
+    if (innerHeight < 560) z = Math.min(z, 1); // short landscape phones
+    document.documentElement.style.setProperty('--uiz', z.toFixed(2)); this.uiZoom = z;
+  }
+  startTraining() { this.startMatch({ mode: 'training', map: 'beach', bots: 3, difficulty: 'easy' }); }
   showcaseMode(m) { this.showcase?.setMode(m); }
   previewCharacter(id, custom) { this.showcase?.setCharacter(resolveLook(id, custom)); }
   previewWeapon(id, build) { this.showcase?.setWeapon(id, build); }
@@ -95,11 +108,14 @@ class App {
     }
     const L = match.local; if (L && L.ctrl) this.attachCtrl(L, me.loadout, L.ctrl);
     boot.classList.add('hidden');
-    this.hud = new HUD(document.getElementById('hud'), match, { touch: this.touch, onDeathAction: (a) => this.deathAction(a), locked: () => this.touch || this.input.locked });
+    this.hud = new HUD(document.getElementById('hud'), match, { touch: this.touch, onDeathAction: (a) => this.deathAction(a), locked: () => this.touch || this.input.locked || this.input.lockFailed, skipStep: () => this.input.pressed.add('skip') });
     match.events.on('end', (res) => this.onMatchEnd(res));
     match.events.on('died', () => { if (match.mode.respawnDelay < 0) { this.input.exitLock(); } });
     this.input.enabled = true;
-    if (this.touch) { const t = document.getElementById('touch'); t.classList.remove('hidden'); this.input.setupTouch(t); this.input.setButtonVisible('fire2', true); }
+    if (this.touch) {
+      const t = document.getElementById('touch'); t.classList.remove('hidden'); this.input.setupTouch(t); this.input.setButtonVisible('fire2', true);
+      if (s.mode === 'training') { const b = document.createElement('div'); b.className = 'tbtn tb-skip'; b.textContent = 'Skip ▸'; b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.input.pressed.add('skip'); }, { passive: false }); t.append(b); }
+    }
     else this.input.requestLock();
     audio.startAmbience(match.map.env.ambience);
     this.state = 'match'; this.matchStart = performance.now();
@@ -142,6 +158,7 @@ class App {
     const m = this.match; if (!m) return; const L = m.local; const st = L.stats;
     if (!res) { const alive = m.combatants.filter((c) => c.alive).length; L.place = L.place || (m.mode.id === 'br' ? alive + (L.alive ? 0 : 1) : 0); res = { mode: m.mode.id, won: false, winnerName: '—', reason: 'Left the match', scoreboard: m.mode.scoreboard() }; }
     const br = res.mode === 'br'; const mins = (performance.now() - this.matchStart) / 60000;
+    if (res.mode === 'training') return this.finishTraining(res, L, mins);
     const xpLines = [['Match completed', 200], ['Eliminations', st.kills * 100], ['Headshots', st.headshots * 25], ['Assists', st.assists * 25]];
     if (res.won) xpLines.push([br ? 'Victory Royale' : 'Victory', br ? 1500 : 1000]);
     if (br && L.place) xpLines.push([`Placement #${L.place}`, Math.max(0, 51 - L.place) * 15]);
@@ -153,6 +170,15 @@ class App {
     this.lastPlayed = { settings: { ...m.settings, roster: undefined, loadout: undefined }, role: m.role };
     this.teardownMatch();
     this.menu.stack = []; this.menu.show('results', false);
+  }
+  finishTraining(res, L, mins) {
+    const p = getProfile(); const done = res.won; const before = levelInfo(p.xp).level; const xp = done ? (p.tutorialDone ? 100 : 500) : 0;
+    p.xp += xp; if (done) p.tutorialDone = true; saveProfile(true);
+    const summary = { xp, challengeXp: 0, challengesDone: [], achievements: [], levelBefore: before, levelAfter: levelInfo(p.xp).level };
+    if (summary.levelAfter > before) audio.levelUp();
+    this.lastResults = { res: { ...res, reason: done ? 'Training complete — you are ready for combat!' : 'Training ended early' }, summary, xpLines: xp ? [['Training completed', xp]] : [], me: { id: L.id, kills: L.stats.kills, deaths: L.stats.deaths, assists: 0, headshots: L.stats.headshots, damage: L.stats.damage, shots: L.stats.shots, hits: L.stats.hits, place: 0, score: L.stats.score, time: mins * 60 } };
+    this.lastPlayed = { settings: { mode: 'training', map: 'beach' }, role: 'solo' };
+    this.teardownMatch(); this.menu.stack = []; this.menu.show('results', false);
   }
   leaveMatch(record) {
     if (!this.match) return;
@@ -205,12 +231,13 @@ class App {
         const L = m.local;
         if (L && L.ctrl) L.ctrl.update(dt, inp);
         m.update(dt);
+        if (m.mode.tutorialTick) m.mode.tutorialTick(dt, inp);
         this.hud?.update(dt, inp);
         const cam = this.gfx.camera; this.gfx.followShadow(cam.position); m.map.builder.cull(cam.position, this.gfx.q.drawDist);
         const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion); audio.setListener(cam.position, fwd);
         // automatic quality adaptation
         const r = this.gfx.trackFrame(dt, now / 1000);
-        if (r && r !== 'res') { const s = getProfile().settings; this.gfx.presetId = r; Object.assign(this.gfx.q, { pixelRatio: PRESETS[r].pixelRatio, bloom: PRESETS[r].bloom, ao: PRESETS[r].ao, drawDist: PRESETS[r].drawDist, particles: PRESETS[r].particles, name: PRESETS[r].name }); this.gfx.resize(); this.gfx.setupComposer(m.scene); this.hud?.toast(`Graphics adjusted to ${PRESETS[r].name} for smoother play`, 'info'); }
+        if (r && r !== 'res') { this.gfx.downgradeTo(r, m.scene); this.hud?.toast(`Graphics lowered to ${PRESETS[r].name} for smoother play`, 'info'); }
       }
       this.gfx.render(m.scene, !!(m.local && m.local.alive && !m.local.dropping));
     } else if (this.showcase) {

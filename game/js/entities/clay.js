@@ -4,13 +4,48 @@ import { clayBump } from '../engine/textures.js';
 import { buildGunModel } from './gunModel.js';
 
 const geo = {
-  sphere: new THREE.SphereGeometry(1, 20, 14), sphereLo: new THREE.SphereGeometry(1, 10, 8),
-  capsule: new THREE.CapsuleGeometry(0.5, 1, 6, 14), capsuleLo: new THREE.CapsuleGeometry(0.5, 1, 3, 8),
-  box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(1, 1, 1, 16), cone: new THREE.ConeGeometry(1, 1, 14),
-  torus: new THREE.TorusGeometry(1, 0.3, 8, 18), halfSphere: new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+  sphere: new THREE.SphereGeometry(1, 14, 10), sphereLo: new THREE.SphereGeometry(1, 8, 6),
+  capsule: new THREE.CapsuleGeometry(0.5, 1, 3, 10), capsuleLo: new THREE.CapsuleGeometry(0.5, 1, 2, 6),
+  box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(1, 1, 1, 12), cone: new THREE.ConeGeometry(1, 1, 10),
+  torus: new THREE.TorusGeometry(1, 0.3, 6, 14), halfSphere: new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
 };
 let quality = { bump: true, lowMat: false };
-export function setClayQuality(q) { quality = q; matCache.clear(); }
+export function setClayQuality(q) { quality = q; matCache.clear(); bakedMat = null; }
+
+// ---- draw-call reduction: bake every opaque clay part under a bone into ONE vertex-colored mesh ----
+let bakedMat = null;
+function bakedMaterial() {
+  if (!bakedMat) {
+    if (quality.lowMat) bakedMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    else { bakedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }); if (quality.bump) { bakedMat.bumpMap = clayBump(); bakedMat.bumpScale = 1.4; } }
+  }
+  return bakedMat;
+}
+const _m3 = new THREE.Matrix3(), _v = new THREE.Vector3();
+export function bakeGroup(group, castShadow = true) {
+  const parts = group.children.filter((o) => o.isMesh && !o.userData.keep && !o.material.transparent && !(o.material.emissive && o.material.emissive.getHex() !== 0));
+  if (parts.length < 2) return null;
+  let nv = 0, ni = 0; for (const m of parts) { nv += m.geometry.attributes.position.count; ni += m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count; }
+  const pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), col = new Float32Array(nv * 3), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  let v = 0, i = 0;
+  for (const m of parts) {
+    m.updateMatrix(); _m3.getNormalMatrix(m.matrix); const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv; const c = m.material.color;
+    for (let k = 0; k < P.count; k++) {
+      _v.fromBufferAttribute(P, k).applyMatrix4(m.matrix); pos.set([_v.x, _v.y, _v.z], (v + k) * 3);
+      _v.fromBufferAttribute(N, k).applyMatrix3(_m3).normalize(); nrm.set([_v.x, _v.y, _v.z], (v + k) * 3);
+      if (U) { uv[(v + k) * 2] = U.getX(k); uv[(v + k) * 2 + 1] = U.getY(k); }
+      col[(v + k) * 3] = c.r; col[(v + k) * 3 + 1] = c.g; col[(v + k) * 3 + 2] = c.b;
+    }
+    if (g.index) for (let k = 0; k < g.index.count; k++) idx[i++] = g.index.getX(k) + v; else for (let k = 0; k < P.count; k++) idx[i++] = v + k;
+    v += P.count; group.remove(m);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geo, bakedMaterial()); mesh.castShadow = castShadow; mesh.userData.baked = true; group.add(mesh); return mesh;
+}
+export function bakeHierarchy(root, castShadow = true) {
+  const groups = []; root.traverse((o) => { if (o.isGroup || o === root) groups.push(o); });
+  for (const g of groups) bakeGroup(g, castShadow);
+}
 const matCache = new Map();
 export function clayMat(color, o = {}) {
   const key = color + (o.emissive || '') + (o.rough || '') + (o.metal || '') + (o.transparent ? 't' : '');
@@ -97,9 +132,10 @@ export class ClayFigure {
     if (L.acc === 'pouches') { for (const x of [-0.17, 0.17]) mesh(geo.box, darken(L.vest, 0.75), 0.1, 0.1, 0.08, x * b, 0.06, -0.16, hips); }
     if (L.acc === 'scarf') { mesh(geo.torus, L.accent, 0.14, 0.14, 0.2, 0, 0.56, 0, torso, { rx: Math.PI / 2 }); mesh(geo.capsule, L.accent, 0.08, 0.2, 0.05, 0.07, 0.42, 0.18, torso, { rz: 0.2 }); }
     if (L.acc === 'necklace') { mesh(geo.torus, '#f2efe6', 0.13, 0.13, 0.15, 0, 0.52, -0.02, torso, { rx: Math.PI / 2 + 0.3 }); for (let i = -2; i <= 2; i++) mesh(geo.cone, '#fff8e6', 0.015, 0.05, 0.015, i * 0.04, 0.47, -0.16 + Math.abs(i) * 0.01, torso, { rx: Math.PI }); }
-    if (L.acc === 'cape') { const c = mesh(geo.box, L.accent, 0.5 * b, 0.6, 0.03, 0, 0.18, 0.22, torso, { rx: 0.15 }); this.cape = c; }
+    if (L.acc === 'cape') { const c = mesh(geo.box, L.accent, 0.5 * b, 0.6, 0.03, 0, 0.18, 0.22, torso, { rx: 0.15 }); c.userData.keep = true; this.cape = c; }
     // weapon mount
     this.gunMount = new THREE.Group(); this.gunMount.position.set(0.12, 0.38, -0.2); torso.add(this.gunMount);
+    if (!this.opts.noBake) { bakeHierarchy(this.hi); bakeHierarchy(this.lo, false); }
     this.hi.traverse((o) => { if (o.isMesh) o.userData.fig = true; });
   }
 
@@ -159,7 +195,7 @@ export class ClayFigure {
     this.weaponId = id; this.weaponBuild = build;
     while (this.gunMount.children.length) this.gunMount.remove(this.gunMount.children[0]);
     if (!id) return;
-    const g = buildGunModel(id, build || {}); this.gun = g; this.gunMount.add(g.group);
+    const g = buildGunModel(id, build || {}, { merge: true }); this.gun = g; this.gunMount.add(g.group);
   }
 
   hit() { this.squashV += 7; }
@@ -167,8 +203,9 @@ export class ClayFigure {
   // state: {speed, crouch, pitch, air, slide, sprint, firing, reloading, dead, aiming}
   animate(dt, s, camDist = 0) {
     // LOD switch
-    const lod = camDist > 55 ? 1 : 0;
+    const lod = camDist > 45 ? 1 : 0;
     if (lod !== this.lodLevel) { this.lodLevel = lod; this.hi.visible = lod === 0; this.lo.visible = lod === 1; }
+    const shadow = camDist < 32; if (shadow !== this.shadowOn) { this.shadowOn = shadow; this.hi.traverse((o) => { if (o.isMesh) o.castShadow = shadow; }); }
     // clay squash spring
     this.squashV += (-this.squash * 90 - this.squashV * 9) * dt; this.squash += this.squashV * dt;
     const sq = Math.max(-0.25, Math.min(0.25, this.squash * 0.04));

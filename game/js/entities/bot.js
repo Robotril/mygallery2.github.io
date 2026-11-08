@@ -38,6 +38,11 @@ export class BotBrain {
     const c = this.c, m = this.m;
     if (!c.alive || c.dropping) return;
     if (!m.mode.started) { this.move(dt, 0, 0, false); return; }
+    if (this.passive) { // training dummy: sways around its home spot, faces the player, never attacks
+      const h = c.home; let mx = 0, mz = 0; if (h) { const tx = h.x + Math.sin(m.time * 0.6 + c.id) * 2.5; mx = clamp((tx - c.pos.x) * 0.3, -0.4, 0.4); mz = clamp((h.z - c.pos.z) * 0.3, -0.4, 0.4); }
+      const L = m.local; if (L) { c.yaw = Math.atan2(-(L.pos.x - c.pos.x), -(L.pos.z - c.pos.z)); c.pitch = 0; }
+      weaponTick(c, dt, false, false); this.move(dt, mx, mz, false); return;
+    }
     this.perceiveT -= dt; if (this.perceiveT <= 0) { this.perceiveT = 0.22 + Math.random() * 0.12; this.perceive(); }
     this.thinkT -= dt; if (this.thinkT <= 0) { this.thinkT = 0.4 + Math.random() * 0.3; this.think(); }
     let mx = 0, mz = 0, sprint = false, wantFire = false;

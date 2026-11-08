@@ -77,8 +77,8 @@ export class LootSystem {
   makeMesh(it) {
     const g = new THREE.Group(); g.position.set(it.x, it.y + 0.45, it.z);
     if (it.type === 'weapon') {
-      const m = buildGunModel(it.weaponId, it.build || {}); m.group.scale.setScalar(1.25); m.group.rotation.y = Math.PI / 2; g.add(m.group);
-      const ring = new THREE.Mesh(this.ringGeo, this.ringMats[it.rarity]); ring.position.y = -0.42; g.add(ring);
+      const m = buildGunModel(it.weaponId, {}, { merge: true, single: true }); m.group.scale.setScalar(1.25); m.group.rotation.y = Math.PI / 2; g.add(m.group);
+      if (it.rarity >= 1) { const ring = new THREE.Mesh(this.ringGeo, this.ringMats[it.rarity]); ring.position.y = -0.42; g.add(ring); }
       if (it.rarity >= 2) { const b = new THREE.Mesh(this.beamGeo, this.beamMats[it.rarity]); b.position.y = 2.6; g.add(b); }
     } else if (it.type === 'ammo') {
       const m = new THREE.Mesh(this.boxGeo, new THREE.MeshStandardMaterial({ color: AMMO[it.ammoType].color, roughness: 0.5 })); m.scale.set(0.34, 0.22, 0.24); g.add(m);
@@ -96,7 +96,7 @@ export class LootSystem {
   }
 
   update(dt, cam) {
-    this.t += dt; const R2 = 42 * 42;
+    this.t += dt; const R2 = 34 * 34;
     for (const it of this.items.values()) {
       const dx = it.x - cam.x, dz = it.z - cam.z; const near = dx * dx + dz * dz < R2 && Math.abs(it.y - cam.y) < 25;
       if (near && !it.mesh) { it.mesh = this.makeMesh(it); this.group.add(it.mesh); }

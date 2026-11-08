@@ -37,7 +37,8 @@ export class HUD {
       <div class="scores hidden"></div>
       <div class="bigmap hidden"><canvas></canvas><div class="bm-legend"></div></div>
       <div class="spec hidden"></div>
-      <div class="clickplay hidden">Click to play</div>`;
+      <div class="clickplay hidden">Click to play<small>Left Click shoots · Right Click aims · Esc pauses</small></div>
+      <div class="tutorial hidden"></div>`;
     const q = (s) => root.querySelector(s); this.q = q;
     this.el = { xh: q('.xhair'), hit: q('.hitmark'), dmgV: q('.vignette.dmg'), lowV: q('.vignette.low'), zoneV: q('.vignette.zone'), flash: q('.flashbang'), scope: q('.scope'), dirs: q('.dmgdirs'), compass: q('.compass-strip'), mini: q('.minimap canvas'), mode: q('.modebox'), feed: q('.killfeed'), medals: q('.medals'), notify: q('.notify'), prompt: q('.prompt'), ch: q('.channel'), name: q('.v-name'), armor: q('.bar.armor'), hp: q('.bar.hp'), inv: q('.inv'), wname: q('.w-name'), mag: q('.mag'), res: q('.res'), slots: q('.w-slots'), equip: q('.w-equip'), gg: q('.ggbar'), cd: q('.countdown'), fps: q('.fps'), death: q('.death'), scores: q('.scores'), big: q('.bigmap'), bigC: q('.bigmap canvas'), spec: q('.spec'), overlay: q('.hud-overlay') };
     this.ctx = this.el.mini.getContext('2d'); this.octx = this.el.overlay.getContext('2d');
@@ -150,6 +151,8 @@ export class HUD {
     if (L.channel) { E.ch.classList.add('on'); E.ch.querySelector('.ch-label').textContent = 'Using ' + HEALS[L.channel.kind].name; E.ch.querySelector('i').style.width = (L.channel.t / L.channel.dur * 100) + '%'; } else E.ch.classList.remove('on');
     // mode box
     this.modeBox(L, st);
+    const tu = st.tutorial; const tel = this.q('.tutorial'); tel.classList.toggle('hidden', !tu || m.ended);
+    if (tu) { const key = tu.i + '|' + this.H.touch; if (this._tuKey !== key) { this._tuKey = key; tel.innerHTML = `<div class="tu-step">TRAINING · STEP ${tu.i + 1} OF ${tu.n}</div><div class="tu-title">${esc(tu.title)}</div><div class="tu-text">${tu.text}</div><div class="tu-bar"><i style="width:${(tu.i / tu.n * 100).toFixed(0)}%"></i></div><div class="tu-skip">${this.H.touch ? 'Tap <b>Skip ▸</b> to skip this step' : 'Press <kbd>Enter</kbd> to skip this step'}</div>`; tel.classList.remove('done'); void tel.offsetWidth; tel.classList.add('done'); } }
     E.cd.textContent = st.countdown > 0 ? st.countdown : ''; E.cd.style.display = st.countdown > 0 ? '' : 'none';
     E.fps.style.display = s.showFps ? '' : 'none'; if (s.showFps) E.fps.textContent = `${Math.round(m.gfx.fps)} FPS · ${m.gfx.q.name}${m.gfx.dynScale < 1 ? ` · ${Math.round(m.gfx.dynScale * 100)}%` : ''}`;
     // zone vignette
@@ -169,6 +172,8 @@ export class HUD {
       const total = GUN_GAME_ORDER.length; const lvl = Math.min(L.ggLevel, total - 1);
       html = `<div class="mb-row"><span class="mb-big">${lvl + 1}/${total}</span><span>WEAPON</span><span class="mb-big">${formatTime(st.time || 0)}</span></div><div class="mb-sub">Leader: ${(st.lead ?? 0) + 1}/${total}</div>`;
       const next = GUN_GAME_ORDER[lvl + 1]; this.el.gg.innerHTML = GUN_GAME_ORDER.map((wid, i) => `<i class="${i < lvl ? 'done' : i === lvl ? 'cur' : ''}" title="${esc(WEAPON_MAP[wid].name)}"></i>`).join('') + `<span>${next ? 'NEXT: ' + esc(WEAPON_MAP[next].name) : 'FINAL WEAPON — GET A KNIFE KILL!'}</span>`;
+    } else if (id === 'training') {
+      html = `<div class="mb-row"><span class="mb-big">${L.stats.kills}</span><span>DUMMIES DOWN</span></div><div class="mb-sub">Training mode · dummies don't shoot back</div>`;
     } else if (id === 'tdm') {
       const ts = st.teamScore || [0, 0]; const my = L.team;
       html = `<div class="mb-row"><span class="mb-big team0 ${my === 0 ? 'mine' : ''}">${ts[0]}</span><span>CORAL vs NEON</span><span class="mb-big team1 ${my === 1 ? 'mine' : ''}">${ts[1]}</span></div><div class="mb-sub">First to ${st.limit} · ${formatTime(st.time || 0)}</div>`;
@@ -213,7 +218,9 @@ export class HUD {
     this.q('.bm-legend').innerHTML = `${esc(m.map.name)} · <span style="color:#fff">◯ zone</span> · <span style="color:#4fd1ff">◌ next zone</span> · <span style="color:#ffd23f">■ supply drop</span> · press M to close`;
   }
   drawOverlay(L, st) {
-    const x = this.octx; const W = this.el.overlay.width, H = this.el.overlay.height; x.clearRect(0, 0, W, H); const m = this.m; const cam = m.gfx.camera; const now = m.time;
+    const x = this.octx; const W = this.el.overlay.width, H = this.el.overlay.height; const m = this.m; const cam = m.gfx.camera; const now = m.time;
+    const need = this.airdrops.length || m.combatants.some((c) => c.alive && c !== L && (c.revealUntil > now || (L.team >= 0 && c.team === L.team)));
+    if (!need && !this.overlayDirty) return; x.clearRect(0, 0, W, H); this.overlayDirty = need;
     const mark = (p, y, color, label, size = 8) => { V.set(p.x, y, p.z).project(cam); if (V.z > 1) return; const sx = (V.x * 0.5 + 0.5) * W, sy = (-V.y * 0.5 + 0.5) * H; x.fillStyle = color; x.beginPath(); x.moveTo(sx, sy - size); x.lineTo(sx + size, sy); x.lineTo(sx, sy + size); x.lineTo(sx - size, sy); x.closePath(); x.fill(); if (label) { x.font = 'bold 12px sans-serif'; x.textAlign = 'center'; x.fillText(label, sx, sy - size - 4); } };
     for (const c of m.combatants) {
       if (c === L || !c.alive) continue; const ally = L.team >= 0 && c.team === L.team;

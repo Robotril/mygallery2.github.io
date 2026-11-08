@@ -52,7 +52,7 @@ class ParticleBuffer {
       const t = this.life[i] / this.max[i]; this.alpha[i] = this.a0[i] * (this.kind[i] > 0.5 ? (t > 0.8 ? (1 - t) * 5 : 1) : (1 - t) * (t < 0.1 ? t * 10 : 1));
       i++;
     }
-    const g = this.geo; for (const a of ['position', 'aColor', 'aSize', 'aAlpha', 'aKind']) g.attributes[a].needsUpdate = true;
+    const g = this.geo; for (const a of ['position', 'aColor', 'aSize', 'aAlpha', 'aKind']) { const at = g.attributes[a]; at.clearUpdateRanges(); if (this.n) { at.addUpdateRange(0, this.n * at.itemSize); at.needsUpdate = true; } }
     g.setDrawRange(0, this.n);
   }
   kill(i) {

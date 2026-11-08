@@ -49,13 +49,16 @@ export class Menu {
     const s = this.P.settings; const k = i.dataset.set; const v = i.type === 'checkbox' ? i.checked : i.type === 'range' ? Number(i.value) : i.value;
     s[k] = v; saveProfile(); const out = this.root.querySelector(`[data-out="${k}"]`); if (out) out.textContent = typeof v === 'number' ? (Math.round(v * 100) / 100) : v;
     if (['master', 'sfx', 'music', 'ambience'].includes(k)) audio.setVolumes(s);
+    if (k === 'uiScale') this.app.applyUiScale();
     if (k === 'graphics' || k === 'renderScale') { this.app.applyGraphics(); if (k === 'graphics') this.show(this.screen, false); }
   }
 
   // ---------------- screens ----------------
   s_main() {
     const ch = challengeDefs();
+    const newbie = !this.P.tutorialDone;
     return `<div class="main-left">
+      <button class="btn howto-btn ${newbie ? 'pulse' : ''}" data-go="howto">🎓 <b>HOW TO PLAY</b><small>${newbie ? 'New? Start here — 2 minute training' : 'Training & controls guide'}</small></button>
       <button class="btn huge primary" data-act="play-br"><b>BATTLE ROYALE</b><small>50 combatants · 1 player + 49 AI</small></button>
       <button class="btn huge" data-act="play-gg"><b>GUN GAME</b><small>20 weapons · first to the knife wins</small></button>
       <button class="btn huge" data-go="custom"><b>CUSTOM MATCH</b><small>Rooms, join codes, invite links, bots</small></button>
@@ -65,7 +68,7 @@ export class Menu {
         <button class="btn tile" data-go="stats">📊<span>Statistics</span></button><button class="btn tile" data-go="settings">⚙️<span>Settings</span></button>
       </div></div>
       <div class="main-right"><div class="panel"><h3>Daily Challenges</h3>${ch.map((c) => `<div class="chal ${c.done ? 'done' : ''}"><div>${esc(c.text)}</div><div class="cbar"><i style="width:${(c.progress / c.goal * 100).toFixed(0)}%"></i></div><small>${c.progress}/${c.goal} · ${c.xp} XP${c.done ? ' ✓' : ''}</small></div>`).join('')}</div>
-      <div class="panel hint">${this.app.touch ? 'Touch controls: left stick to move, drag right side to look. Customize buttons in Settings → Touch.' : 'WASD move · Mouse look · LMB fire · RMB aim · R reload · Space jump · Shift sprint · Ctrl/C crouch & slide · E interact · G grenade · Q tactical · V melee · H heal · X gear · Tab scores · M map · Esc pause'}</div></div>`;
+      <div class="panel hint">${this.app.touch ? 'Touch: left stick moves · drag the right side to look · red 🔫 button shoots.' : '<b>Left Click</b> shoot · <b>Right Click</b> aim · <b>WASD</b> move · <b>Mouse</b> look · <b>R</b> reload · <b>Space</b> jump · <b>Shift</b> sprint · <b>C</b> crouch/slide · <b>E</b> pick up · <b>Esc</b> pause'}<br><a href="#" data-go="howto">Full controls &amp; tutorial ▸</a></div></div>`;
   }
   s_br() {
     return `<h2>Battle Royale</h2><p class="sub">Drop from the plane, loot, survive the storm. You vs 49 AI-controlled opponents (offline, single-player).</p>
@@ -183,6 +186,7 @@ export class Menu {
     if (tab === 'graphics') body = `<label>Quality preset<select data-set="graphics">${['auto', 'low', 'medium', 'high', 'ultra'].map((k) => `<option value="${k}" ${s.graphics === k ? 'selected' : ''}>${k === 'auto' ? `Auto (detected: ${PRESETS[g.detected.preset].name})` : PRESETS[k].name}</option>`).join('')}</select></label>
       <small class="note">Detected: ${esc(g.detected.reason)} · GPU: ${esc(g.detected.gpu)}. Auto mode lowers resolution and quality if frame rate drops.</small>
       <div class="kv">${(() => { const q = PRESETS[g.presetId]; return `<span>Active</span><b>${q.name}</b><span>Shadows</span><b>${q.shadows ? q.shadowSize : 'Off'}</b><span>Bloom</span><b>${q.bloom ? 'On' : 'Off'}</b><span>Ambient occlusion</span><b>${q.ao ? 'On' : 'Off'}</b><span>Textures</span><b>${q.texSize}px</b><span>View distance</span><b>${q.drawDist}m</b>`; })()}</div>
+      <label>Text &amp; interface size<select data-set="uiScale">${[['auto', 'Auto (larger on computers)'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%'], ['1.45', '145%'], ['1.6', '160%']].map(([v, n]) => `<option value="${v}" ${String(s.uiScale) === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       ${rng('renderScale', 0.5, 1, 0.05, 'Render scale')}${rng('fov', 60, 105, 1, 'Field of view')}${chk('showFps', 'Show FPS counter')}<small class="note">Graphics changes apply fully to the next match.</small>`;
     if (tab === 'controls') body = `${rng('sensitivity', 0.2, 3, 0.05, 'Mouse sensitivity')}${rng('adsSensitivity', 0.2, 1.5, 0.05, 'Aim-down-sight multiplier')}${chk('invertY', 'Invert Y axis')}${chk('holdToCrouch', 'Hold to crouch (instead of toggle)')}${chk('fullscreen', 'Fullscreen when a match starts')}
       <label>Crosshair color<input type="color" value="${s.crosshairColor}" data-set="crosshairColor"></label>
@@ -195,7 +199,7 @@ export class Menu {
   s_results() {
     const r = this.app.lastResults; if (!r) return '';
     const res = r.res, sum = r.summary, me = r.me; const br = res.mode === 'br';
-    return `<div class="results ${res.won ? 'win' : 'loss'}"><div class="res-banner">${res.won ? (br ? 'VICTORY ROYALE' : 'VICTORY') : br ? `#${me.place || '?'} PLACE` : 'DEFEAT'}</div><div class="res-sub">${esc(res.reason || '')} · Winner: ${esc(res.winnerName)}</div>
+    return `<div class="results ${res.won ? 'win' : 'loss'}"><div class="res-banner">${res.mode === 'training' ? (res.won ? 'TRAINING COMPLETE' : 'TRAINING ENDED') : res.won ? (br ? 'VICTORY ROYALE' : 'VICTORY') : br ? `#${me.place || '?'} PLACE` : 'DEFEAT'}</div><div class="res-sub">${esc(res.reason || '')} · Winner: ${esc(res.winnerName)}</div>
       <div class="cols"><div class="panel"><div class="stats">${[['Eliminations', me.kills], ['Deaths', me.deaths], ['Assists', me.assists], ['Headshots', me.headshots], ['Damage', Math.round(me.damage)], ['Accuracy', (me.hits / Math.max(1, me.shots) * 100).toFixed(0) + '%'], br ? ['Placement', '#' + (me.place || '?')] : ['Score', me.score], ['Time', formatTime(me.time)]].map(([k, v]) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
         <h3>+${sum.xp} XP</h3>${r.xpLines.map((l) => `<div class="xpl"><span>${esc(l[0])}</span><b>+${l[1]}</b></div>`).join('')}
         ${sum.levelAfter > sum.levelBefore ? `<div class="lvlup">LEVEL UP! ${sum.levelBefore} → ${sum.levelAfter}</div>` : ''}
@@ -203,6 +207,32 @@ export class Menu {
         ${sum.achievements.map((a) => `<div class="xpl ok"><span>🏆 ${esc(a.name)}</span></div>`).join('')}</div>
       <div class="panel"><h3>Scoreboard</h3><table class="sb">${res.scoreboard.slice(0, 12).map((s, i) => `<tr class="${s.id === me.id ? 'me' : ''}"><td>${br ? (s.alive ? '#1' : '#' + s.place) : i + 1}</td><td>${esc(s.name)}${s.bot ? ' <i class="bot">BOT</i>' : ''}</td><td>${s.kills} K</td><td>${s.deaths} D</td></tr>`).join('')}</table></div></div>
       <div class="row center"><button class="btn primary big" data-act="again">Play Again</button><button class="btn big" data-act="to-main">Main Menu</button></div></div>`;
+  }
+
+  s_howto() {
+    const t = this.app.touch; const tab = this.howTab || (t ? 'mobile' : 'pc');
+    const row = (keys, what) => `<div class="hk"><span>${keys.map((x) => `<kbd>${x}</kbd>`).join(' ')}</span><b>${what}</b></div>`;
+    const sec = {
+      pc: `<h3>Keyboard &amp; mouse</h3><div class="hkeys">${row(['Left Click'], 'Shoot')}${row(['Right Click'], 'Aim down sights (hold)')}${row(['Mouse'], 'Look around')}${row(['W', 'A', 'S', 'D'], 'Move')}${row(['Shift'], 'Sprint (hold)')}${row(['Space'], 'Jump')}${row(['C', 'Ctrl'], 'Crouch · slide while sprinting')}${row(['R'], 'Reload')}${row(['1', '2', 'Wheel'], 'Switch weapon')}${row(['E', 'F'], 'Pick up loot · open crates')}${row(['G'], 'Throw grenade')}${row(['Q'], 'Smoke / stun')}${row(['V', 'Middle Click'], 'Melee')}${row(['H'], 'Heal / medkit')}${row(['X'], 'Field gear (recon pulse)')}${row(['I'], 'Inspect weapon')}${row(['Tab'], 'Scoreboard (hold)')}${row(['M'], 'Full map')}${row(['Esc'], 'Pause · release mouse')}</div>
+        <p class="note">The first click in a match captures the mouse so you can look around freely — that click also fires. Press Esc to get your cursor back.</p>`,
+      mobile: `<h3>Touch controls</h3><div class="hkeys">${row(['Left stick'], 'Move (push fully forward to sprint)')}${row(['Drag right side'], 'Look around')}${row(['🔫'], 'Shoot — drag on it to aim while firing')}${row(['◎'], 'Aim down sights (toggle)')}${row(['⤒'], 'Jump')}${row(['⤓'], 'Crouch · slide while sprinting')}${row(['⟳'], 'Reload')}${row(['⇄'], 'Switch weapon')}${row(['✋'], 'Pick up loot')}${row(['💣', '☁'], 'Grenade · smoke/stun')}${row(['✚'], 'Heal')}</div><p class="note">Hold your device in landscape. Button positions, size, sensitivity and aim assist are in Settings → Touch.</p>`,
+      modes: `<h3>Battle Royale</h3><p>You and 49 AI opponents jump from a plane. Press <kbd>Space</kbd> to drop, steer with <kbd>WASD</kbd>, and the parachute opens automatically. You land with nothing: grab weapons, ammo, armor and heals with <kbd>E</kbd>. Stay inside the shrinking zone (white circle on the map) — the storm outside hurts more each phase. Last one standing wins.</p>
+        <h3>Gun Game</h3><p>Everyone starts with the same pistol. Each elimination gives you the next of 20 weapons. Melee kills demote your victim. Finish with a knife kill to win.</p>
+        <h3>Custom Match</h3><p>Pick Free-for-All, Team Deathmatch, Gun Game or Battle Royale; choose map, bots, difficulty, time and weapon classes. Play solo, or create a room and share the 6-letter code or invite link so friends can join.</p>`,
+      tips: `<h3>Tips</h3><ul class="tips"><li>Aim for the head — headshots deal much more damage.</li><li>Hold <kbd>Right Click</kbd> to aim: shots become far more accurate, but you move slower.</li><li>Shooting while moving or jumping spreads your bullets. Stop or crouch for long shots.</li><li>Fire in short bursts with automatic weapons to control recoil.</li><li>Your health regenerates in Gun Game and Custom matches. In Battle Royale, press <kbd>H</kbd> to use bandages, medkits or shield cells.</li><li>Armor (blue bar) absorbs damage before health.</li><li>Red dots on the minimap are enemy gunfire. Suppressors hide you from it.</li><li>Gold crates contain high-tier loot. Watch for supply drops in Battle Royale.</li><li>Shoot red barrels to blow them up; shoot glass to break it.</li></ul>`,
+    };
+    return `<h2>How to Play</h2><div class="howto-hero panel"><div><h3>Interactive training</h3><p class="note">A 2-minute guided course on the beach: look, move, sprint, slide, shoot, aim, reload, loot, grenades — then take out 3 target dummies. Each step tells you exactly which key to press.</p></div><button class="btn primary big" data-act="training">▶ Start Training</button></div>
+      <div class="tabs">${[['pc', '🖱 Computer'], ['mobile', '📱 Mobile'], ['modes', '🎮 Game modes'], ['tips', '💡 Tips']].map(([k, n]) => `<button class="btn ${tab === k ? 'on' : ''}" data-act="howto-tab" data-v="${k}">${n}</button>`).join('')}</div><div class="panel howto-body">${sec[tab]}</div>`;
+  }
+  welcome() {
+    const p = this.P; p.tutorialOffered = true; saveProfile();
+    const d = document.createElement('div'); d.className = 'pause welcome';
+    d.innerHTML = `<div class="panel"><h2>Welcome, Agent!</h2><p class="note" style="font-size:1.05em">New to CLAYFRONT? Take the 2-minute training to learn the controls — ${this.app.touch ? 'the left stick moves, drag to look, and the red button shoots' : '<b>Left Click</b> shoots, <b>Right Click</b> aims, <b>WASD</b> moves'}.</p>
+      <button class="btn primary big" data-a="train">▶ Start Training</button><button class="btn" data-a="guide">Read the How to Play guide</button><button class="btn ghost" data-a="skip">Skip — I know how to play</button></div>`;
+    d.querySelector('[data-a=train]').onclick = () => { audio.click(); d.remove(); this.app.startTraining(); };
+    d.querySelector('[data-a=guide]').onclick = () => { audio.click(); d.remove(); this.show('howto'); };
+    d.querySelector('[data-a=skip]').onclick = () => { audio.click(); d.remove(); };
+    document.body.append(d);
   }
 
   // ---------------- actions ----------------
@@ -248,6 +278,8 @@ export class Menu {
       case 'edit-layout': openLayoutEditor(document.body, () => this.show('settings', false)); break;
       case 'reset-all': if (confirm('Reset ALL progress, loadouts and settings? This cannot be undone.')) { resetProfile(); this.show('main', false); } break;
       case 'again': this.app.playAgain(); break;
+      case 'training': this.app.startTraining(); break;
+      case 'howto-tab': this.howTab = v; this.show('howto', false); break;
       case 'to-main': this.stack = []; this.show('main', false); break;
     }
     // range inputs bound to this.sel

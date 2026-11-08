@@ -150,10 +150,25 @@ export function signTexture(text, fg = '#ff2bd6', bg = 'rgba(0,0,0,0)', w = 512,
     const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
     ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = fg; ctx.shadowBlur = 18; ctx.fillStyle = fg; ctx.fillText(text, w / 2, h / 2 + 4);
-    ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.6; ctx.fillText(text, w / 2, h / 2 + 4);
+    ctx.shadowColor = fg; ctx.shadowBlur = 18; ctx.fillStyle = fg; ctx.fillText(text, w / 2, h / 2 + 4, w * 0.92);
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.6; ctx.fillText(text, w / 2, h / 2 + 4, w * 0.92);
     const t = toTex(c, { repeat: false }); return t;
   });
+}
+// Pack many signs into one atlas texture so they render in a single draw call.
+export function signAtlas(list) {
+  const cw = TEX_SIZE >= 1024 ? 512 : 256, ch = cw / 4, cols = 4, rows = Math.ceil(list.length / cols);
+  const c = document.createElement('canvas'); c.width = cw * cols; c.height = Math.max(ch, rows * ch); const x = c.getContext('2d');
+  const scale = cw / 512; const uvs = [];
+  list.forEach((s, i) => {
+    const ox = (i % cols) * cw, oy = Math.floor(i / cols) * ch;
+    x.save(); x.beginPath(); x.rect(ox, oy, cw, ch); x.clip(); x.translate(ox, oy); x.scale(scale, scale);
+    x.fillStyle = s.bg || 'rgba(0,0,0,0)'; x.fillRect(0, 0, 512, 128); x.font = 'bold 84px "Arial Black", Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.shadowColor = s.color; x.shadowBlur = 18; x.fillStyle = s.color; x.fillText(s.text, 256, 68, 470); x.shadowBlur = 0; x.fillStyle = '#fff'; x.globalAlpha = 0.6; x.fillText(s.text, 256, 68, 470);
+    x.restore();
+    uvs.push([ox / c.width, 1 - (oy + ch) / c.height, (ox + cw) / c.width, 1 - oy / c.height]);
+  });
+  const t = toTex(c, { repeat: false }); t.anisotropy = 1; return { tex: t, uvs };
 }
 
 export function billboardTexture(title, sub, c1, c2) {

@@ -6,7 +6,7 @@ import * as P from './props.js';
 import { mulberry32 } from '../core/util.js';
 import { makeWaterMaterial } from './water.js';
 import { billboardTexture } from '../engine/textures.js';
-import { sign, addBuildingLoot } from './beach.js';
+import { sign, addBuildingLoot, finalizeSigns } from './beach.js';
 
 const ROADS = [-120, -40, 40, 120];
 const RW = 5; // asphalt half width
@@ -109,7 +109,7 @@ export function buildCity(scene, quality, seed = 1) {
   for (let t = -170; t < 170; t += 4) for (const e of [-170, 170]) {
     B.box(e - 0.3, 0, t, e + 0.3, 1.1, t + 3.6, 'paint', (t / 4) % 2 ? '#f2f2f2' : '#e8463c', { collide: false }); B.box(t, 0, e - 0.3, t + 3.6, 1.1, e + 0.3, 'paint', (t / 4) % 2 ? '#e8463c' : '#f2f2f2', { collide: false });
   }
-  B.finalize();
+  B.finalize(); P.finalizeGlass(B); finalizeSigns(info, B);
 
   // dynamic traffic light bulbs
   const bulbGeo = new THREE.SphereGeometry(0.13, 8, 6); info.bulbs = [];

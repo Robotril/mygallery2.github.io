@@ -1,6 +1,6 @@
 // Ambient life kept outside combat space: traffic + pedestrians beyond the city boundary, gulls, clouds, helicopter.
 import * as THREE from 'three';
-import { makePedestrian, clayMat } from '../entities/clay.js';
+import { makePedestrian, clayMat, bakeHierarchy } from '../entities/clay.js';
 import { mulberry32 } from '../core/util.js';
 
 export class Ambient {
@@ -10,10 +10,10 @@ export class Ambient {
     if (map.id === 'city') {
       const R = map.ambientRing; // ring road outside the playable area
       for (let i = 0; i < q.traffic; i++) {
-        const car = makeCar(r); car.userData = { s: r() * 8 * R, lane: r() < 0.5 ? -2.5 : 2.5, speed: 9 + r() * 7, R }; this.scene.add(car); this.cars.push(car);
+        const car = makeCar(r); bakeHierarchy(car, false); car.userData = { s: r() * 8 * R, lane: r() < 0.5 ? -2.5 : 2.5, speed: 9 + r() * 7, R }; this.scene.add(car); this.cars.push(car);
       }
       for (let i = 0; i < q.pedestrians; i++) {
-        const p = makePedestrian(r); p.userData.s = r() * 8 * R; p.userData.speed = 1.1 + r() * 0.6; p.userData.side = r() < 0.5 ? -8 : 8; p.userData.dir = r() < 0.5 ? 1 : -1; p.userData.R = R; p.userData.flee = 0; p.userData.ph = r() * 6;
+        const p = makePedestrian(r); bakeHierarchy(p, false); p.userData.s = r() * 8 * R; p.userData.speed = 1.1 + r() * 0.6; p.userData.side = r() < 0.5 ? -8 : 8; p.userData.dir = r() < 0.5 ? 1 : -1; p.userData.R = R; p.userData.flee = 0; p.userData.ph = r() * 6;
         this.scene.add(p); this.peds.push(p);
       }
       // news helicopter
@@ -25,7 +25,7 @@ export class Ambient {
     } else {
       for (let i = 0; i < 10; i++) { const b = makeGull(); b.userData = { a: r() * 6.28, r: 30 + r() * 80, h: 18 + r() * 20, sp: 0.15 + r() * 0.15, cx: (r() - 0.5) * 200, cz: 20 + r() * 80 }; this.scene.add(b); this.birds.push(b); }
     }
-    if (map.env.clouds) for (let i = 0; i < q.clouds; i++) { const c = makeCloud(r); c.position.set((r() - 0.5) * 1600, 120 + r() * 80, (r() - 0.5) * 1600); this.scene.add(c); this.items.push(c); }
+    if (map.env.clouds) for (let i = 0; i < q.clouds; i++) { const c = makeCloud(r); bakeHierarchy(c, false); c.position.set((r() - 0.5) * 1600, 120 + r() * 80, (r() - 0.5) * 1600); this.scene.add(c); this.items.push(c); }
   }
   update(dt) {
     this.t += dt; const t = this.t;
@@ -67,7 +67,7 @@ function makeGull() {
   return g;
 }
 function makeCloud(r) {
-  const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, emissive: '#cfd8e6', emissiveIntensity: 0.35, fog: false });
+  const g = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: '#f4f7fb', roughness: 1 });
   for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), m); const k = 14 + r() * 16; s.scale.set(k * 1.3, k * 0.7, k); s.position.set((r() - 0.5) * 60, (r() - 0.5) * 6, (r() - 0.5) * 30); g.add(s); }
   return g;
 }
