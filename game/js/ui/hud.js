@@ -38,7 +38,7 @@ export class HUD {
       <div class="scores hidden"></div>
       <div class="bigmap hidden"><canvas></canvas><div class="bm-legend"></div></div>
       <div class="spec hidden"></div>
-      <div class="clickplay hidden">Click to play<small>Left Click shoots · Right Click aims · Esc pauses</small></div>
+      <div class="clickplay hidden">Click to play<small>Arrows move · Click shoots · Esc pauses</small></div>
       <div class="tutorial hidden"></div>
       <div class="keyhint hidden"></div>`;
     const q = (s) => root.querySelector(s); this.q = q;
@@ -145,7 +145,7 @@ export class HUD {
     else { E.wname.textContent = 'Fists'; E.mag.textContent = '0'; E.res.textContent = ' find a gun!'; }
     E.slots.innerHTML = L.slots.map((sw, i) => `<span class="${i === L.slot ? 'on' : ''}">${i + 1} ${sw ? esc(WEAPON_MAP[sw.id].name.split(' ')[0]) : 'empty'}</span>`).join('');
     const gear = GEAR.find((g) => g.id === L.gear);
-    E.equip.innerHTML = `<span title="Grenades (G)">${icon('grenade')} ${L.lethal.n}</span><span title="Smoke or stun (Q)">${icon('smoke')} ${L.tactical.n}</span>${gear && gear.cooldown ? `<span title="${esc(gear.name)}">${icon(gear.id === 'pulse' ? 'radar' : 'heal')} ${L.gearCd > 0 ? Math.ceil(L.gearCd) + 's' : 'ready'}</span>` : ''}`;
+    E.equip.innerHTML = `<span title="Grenades (1)">${icon('grenade')} ${L.lethal.n}</span><span title="Smoke or stun (2)">${icon('smoke')} ${L.tactical.n}</span>${gear && gear.cooldown ? `<span title="${esc(gear.name)}">${icon(gear.id === 'pulse' ? 'radar' : 'heal')} ${L.gearCd > 0 ? Math.ceil(L.gearCd) + 's' : 'ready'}</span>` : ''}`;
     if (L.fire.reload > 0 && w) { E.res.textContent += ' reloading'; }
     // prompt + channel
     const pr = ctrl?.prompt || ''; const dh = ctrl?.dropHint || ''; E.prompt.textContent = pr ? (this.H.touch || !this.promptNeedsKey(ctrl) ? pr : 'Press E to ' + pr) : dh ? (this.H.touch ? dh.replace('Press JUMP', 'Tap the jump button') : dh.replace('JUMP', 'Space')) : ''; E.prompt.style.opacity = pr || dh ? 1 : 0;
@@ -162,6 +162,7 @@ export class HUD {
     // scoreboard / map
     const showScores = inp?.scores || this.m.ended; E.scores.classList.toggle('hidden', !inp?.scores); if (inp?.scores) this.drawScores();
     if (inp?.map) { this.mapOpen = !this.mapOpen; E.big.classList.toggle('hidden', !this.mapOpen); }
+    if (this.deathShown && L.alive && !m.ended) this.hideDeath(); // back in the fight: never leave the card up
     if (this.deathShown && m.mode.respawnDelay >= 0) { const t = Math.max(0, L.respawnAt - m.time); const dt2 = this.el.death.querySelector('.d-timer'); if (dt2) dt2.textContent = `Respawning in ${t.toFixed(1)}s`; }
   }
   promptNeedsKey(ctrl) { return !!(ctrl.promptCrate || ctrl.promptManual); }
@@ -169,7 +170,7 @@ export class HUD {
     const s = getProfile().settings; const el = this.q('.keyhint'); const show = !this.H.touch && s.keyHints !== false && L.alive && !L.dropping && !this.m.ended && this.m.mode.id !== 'training' && this.m.time < 45;
     el.classList.toggle('hidden', !show); if (!show || this._khDone) return; this._khDone = true;
     const k = (a, t) => `<span>${a.map((x) => `<kbd>${x}</kbd>`).join('')} ${t}</span>`;
-    el.innerHTML = k(['Click'], 'shoot') + k(['Right click'], 'zoom') + k(['Space'], 'jump') + k(['R'], 'reload') + k(['Esc'], 'pause');
+    el.innerHTML = k(['Arrows'], 'move') + k(['Click'], 'shoot') + k(['Z'], 'zoom') + k(['Space'], 'jump') + k(['1'], 'grenade') + k(['R'], 'reload') + k(['Esc'], 'pause');
   }
   modeBox(L, st) {
     const m = this.m; const id = m.mode.id; let html = '';

@@ -40,6 +40,7 @@ const P = {
   users: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19.5c.5-3.3 2.6-5.5 5.5-5.5s5 2.2 5.5 5.5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.3c1.7.7 2.8 2.5 3 5.2"/>',
   skull: '<path d="M5 11a7 7 0 0 1 14 0c0 2.5-1 4-2.5 5v3.5h-9V16C6 15 5 13.5 5 11z"/><circle cx="9.5" cy="11.5" r="1.5" fill="currentColor"/><circle cx="14.5" cy="11.5" r="1.5" fill="currentColor"/><path d="M11 19.5v-2M13 19.5v-2"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  share: '<path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 11H5.5v9.5h13V11H17"/>',
 };
 export function icon(name, cls = '') {
   return `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;

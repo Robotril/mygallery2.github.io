@@ -27,11 +27,15 @@ On first launch a welcome popup offers the **2-minute interactive training**, wh
 
 ## Controls
 
-**PC:** **Left Click shoots** (the first click also captures the mouse; if the browser refuses, the game falls back to free mouse-look) · WASD move · Mouse look · Right Click zoom · R reload · Space jump · Ctrl or C crouch (slide while running) · E open crates and swap guns · 1/2/wheel switch weapon · G grenade · Q tactical · V melee · H heal · X field gear · Tab scoreboard · M map · Esc pause.
+**PC:** **Arrow keys move** (W A S D works too) · touchpad or mouse looks around · **left or right click shoots** (F too) · Z zoom · Space jump · Shift run · C or Ctrl crouch (slide while running) · R reload · Q or wheel switch weapon · E open crates and swap guns · **1 grenade · 2 smoke or stun · 3 heal · 4 melee · 5 gear** · Tab scoreboard · M map · Esc pause. The first click also captures the pointer; if the browser refuses, the game falls back to free look.
 
-**Playing with only a keyboard:** the arrow keys aim (they speed up the longer you hold them), F shoots and Z zooms. Running is automatic once you've held W for a moment, gentle aim assist helps on PC, and you pick up guns, ammo, heals and armor just by walking over them. A one-line key reminder shows for the first 45 seconds of a match. Each of these can be switched off in **Settings → Controls**, which also has toggle-to-zoom. Text size is under **Settings → Graphics** (Auto fits your screen; Bigger, Much bigger and Huge go further).
+Running is automatic once you've held Up for a moment, gentle aim assist helps on PC, and you pick up guns, ammo, heals and armor by walking over them. A one-line key reminder shows for the first 45 seconds of a match. These can be switched off in **Settings → Controls**, which also has toggle-to-zoom. Text size is under **Settings → Graphics**.
 
-**Mobile (landscape):** floating left stick (push fully forward to sprint), drag the right side to look, drag on the fire button to aim while shooting, plus buttons for aim, jump, crouch/slide, reload, swap, grenade, tactical, interact, heal, gear, melee, scoreboard, pause and map. Button positions, size and sensitivity are adjustable under **Settings → Touch**, and aim assist is optional.
+**Phone (sideways or upright):** floating left stick (push fully forward to sprint), drag the right side to look, drag on the fire button to aim while shooting, plus buttons for aim, jump, crouch/slide, reload, swap, grenade, tactical, interact, heal, gear, melee, scoreboard, pause and map. The buttons have a separate layout for each way you hold the phone, and switch over when you turn it. Button positions (saved per orientation), size and sensitivity are adjustable under **Settings → Touch**, and aim assist is optional.
+
+## Phones and the Home Screen
+
+The game plays sideways or upright. Upright, the camera widens so you can still see to the sides, the gun moves in to stay on screen, and the menus stack into one column. Inside a phone browser the address and tab bars take a lot of room, and iPhone Safari doesn't allow web pages to go fullscreen, so on iPhone and iPad the home screen shows a tip: tap Share, then **Add to Home Screen**. Opened from the Home Screen icon, the game runs fullscreen with no browser bars (`manifest.webmanifest`, icons in `icons/`). Layouts also keep clear of the iPhone notch and home bar.
 
 ## Look and feel
 

@@ -72,7 +72,7 @@ class App {
   showcaseMode(m) { this.showcase?.setMode(m); }
   previewCharacter(id, custom) { this.showcase?.setCharacter(resolveLook(id, custom)); }
   previewWeapon(id, build) { this.showcase?.setWeapon(id, build); }
-  checkOrientation() { document.body.classList.toggle('portrait', this.touch && innerHeight > innerWidth); }
+  checkOrientation() { document.body.classList.toggle('portrait', innerHeight > innerWidth); document.body.classList.toggle('standalone', !!(navigator.standalone || matchMedia('(display-mode: standalone)').matches)); }
 
   me() { const p = getProfile(); return { name: p.name, charId: p.character, custom: p.custom[p.character] || {}, loadout: p.loadouts[p.activeLoadout] }; }
 
@@ -129,7 +129,7 @@ class App {
   }
   enterFullscreen() {
     const el = document.documentElement; if (document.fullscreenElement || !el.requestFullscreen) return;
-    el.requestFullscreen({ navigationUI: 'hide' }).then(() => { navigator.keyboard?.lock?.(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ControlLeft', 'Escape']).catch(() => {}); screen.orientation?.lock?.('landscape').catch(() => {}); }).catch(() => {});
+    el.requestFullscreen({ navigationUI: 'hide' }).then(() => { navigator.keyboard?.lock?.(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ControlLeft', 'Escape']).catch(() => {}); }).catch(() => {});
   }
   openPause() {
     if (this.state !== 'match' || this.pauseEl || !this.match || this.match.ended) return;

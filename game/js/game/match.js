@@ -90,6 +90,7 @@ export class Match {
     c.yaw = Math.atan2(p.x - (this.map.arena.minX + this.map.arena.maxX) / 2, p.z - (this.map.arena.minZ + this.map.arena.maxZ) / 2);
     c.pitch = 0; c.figure.deathT = -1; c.figure.root.rotation.x = 0; c.figure.root.scale.set(1, 1, 1);
     this.mode.equip?.(c); if (c.brain) c.brain.reset();
+    if (c.kind === 'local') this.events.emit('respawned'); // clears the knocked-out card
     if (c.kind === 'remote') this.netSend(c.peerId, { t: 'spawn', x: c.pos.x, y: c.pos.y, z: c.pos.z, yaw: c.yaw });
   }
 

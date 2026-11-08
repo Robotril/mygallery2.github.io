@@ -13,6 +13,14 @@ import { radialGlow } from '../engine/textures.js';
 const GRAV = 21, JUMP = 7.4, WALK = 5.3, SPRINT_MUL = 1.42, CROUCH_MUL = 0.52, ADS_MUL = 0.68, STEP = 0.46;
 const V = new THREE.Vector3(), V2 = new THREE.Vector3(), Q = new THREE.Quaternion(), E = new THREE.Euler(0, 0, 0, 'YXZ');
 
+// three.js field of view is vertical, so a phone held upright would see a thin slice of the world.
+// In portrait, treat the setting as a horizontal view (a bit narrower) and convert it, capped to avoid fisheye.
+function portraitFov(fov, aspect) {
+  if (aspect >= 1) return fov;
+  const h = THREE.MathUtils.degToRad(fov * 0.85);
+  return Math.min(108, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(h / 2) / aspect)));
+}
+
 export class PlayerController {
   constructor(match, c, loadout) {
     this.m = match; this.c = c; this.loadout = loadout; this.vm = new Viewmodel(match.gfx, c.look);
@@ -255,7 +263,7 @@ export class PlayerController {
   setFov(hfov, zoom, dt) {
     const cam = this.m.gfx.camera; const asp = cam.aspect; const v = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(hfov) / 2) / Math.max(1, asp)) ;
     const vf = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(v / 2) / zoom));
-    this.fovCur = damp(this.fovCur, vf, 20, dt); cam.fov = this.fovCur; cam.updateProjectionMatrix();
+    this.fovCur = damp(this.fovCur, vf, 20, dt); cam.fov = portraitFov(this.fovCur, cam.aspect); cam.updateProjectionMatrix();
     this.m.effects.setScale(window.innerHeight * this.m.gfx.renderer.getPixelRatio(), cam.fov);
   }
   dispose() { this.vm.dispose(); this.m.scene.remove(this.muzzleLight); }
@@ -317,6 +325,7 @@ class Viewmodel {
     const pist = w.stats.cls === 'pistol'; const hip = this.isKnife ? new THREE.Vector3(0.2, -0.22, -0.38) : pist ? new THREE.Vector3(0.15, -0.16, -0.46) : new THREE.Vector3(0.15, -0.17, -0.4);
     const aimDist = w.stats.optic === 'acog' || w.stats.optic === 'scope8' ? 0.2 : 0.26;
     const aimP = new THREE.Vector3(0, -g.sightY, -aimDist - g.sightZ * 1);
+    if (this.gfx.camera.aspect < 1) hip.x *= 0.5; // upright phone: pull the gun in so it stays on screen
     const p = hip.lerp(aimP, ads);
     let rx = 0, ry = this.isKnife ? 0.3 : 0.07 * (1 - ads), rz = 0;
     // sprint pose
@@ -345,7 +354,7 @@ class Viewmodel {
     this.holder.position.copy(p); this.holder.rotation.set(rx + this.kickR * (1 - ads * 0.6) + this.swayY, ry + this.swayX, rz);
     this.group.visible = !ctrl.scoped;
     if (this.flashT > 0) { this.flashT -= dt; this.flash.visible = true; } else this.flash.visible = false;
-    this.gfx.vmCamera.fov = 60; this.gfx.vmCamera.updateProjectionMatrix();
+    this.gfx.vmCamera.fov = this.gfx.camera.aspect < 1 ? 72 : 60; this.gfx.vmCamera.updateProjectionMatrix();
   }
   dispose() { this.gfx.vmScene.remove(this.group); }
 }

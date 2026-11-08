@@ -50,7 +50,8 @@ export class Showcase {
   drag(dx) { this.dragV += dx * 0.01; }
   update(dt) {
     this.t += dt; const cam = this.gfx.camera; const m = this.mode;
-    const target = { main: [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]], character: [[0.25, 2.0, 5.2], [0, 1.7, 0]], weapons: [[0, 1.7, 2.2], [0, 1.55, 0]], loadout: [[2.6, 2.1, 5.6], [-0.4, 1.7, 0]] }[m] || [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]];
+    let target = { main: [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]], character: [[0.25, 2.0, 5.2], [0, 1.7, 0]], weapons: [[0, 1.7, 2.2], [0, 1.55, 0]], loadout: [[2.6, 2.1, 5.6], [-0.4, 1.7, 0]] }[m] || [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]];
+    if (cam.aspect < 1 && (m === 'main' || !m)) target = [[1.4, 1.5, 13], [0.1, -0.5, 0]]; // upright phone: character sits in the top half
     this.camPos.lerp(new THREE.Vector3(...target[0]), 1 - Math.exp(-dt * 3)); this.camLook.lerp(new THREE.Vector3(...target[1]), 1 - Math.exp(-dt * 3));
     const sway = Math.sin(this.t * 0.25) * 0.25; cam.position.set(this.camPos.x + sway, this.camPos.y + Math.sin(this.t * 0.4) * 0.05, this.camPos.z); cam.lookAt(this.camLook);
     cam.fov = 40; cam.updateProjectionMatrix();

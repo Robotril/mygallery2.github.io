@@ -3,10 +3,15 @@ import { getProfile, saveProfile } from '../core/save.js';
 import { icon } from '../ui/icons.js';
 
 const KEYMAP = {
-  KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ArrowUp: 'lookUp', ArrowDown: 'lookDown', ArrowLeft: 'lookLeft', ArrowRight: 'lookRight', KeyZ: 'aim',
+  // move: arrow keys or WASD
+  ArrowUp: 'fwd', ArrowDown: 'back', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right',
   Space: 'jump', ShiftLeft: 'sprint', ShiftRight: 'sprint', ControlLeft: 'crouch', ControlRight: 'crouch', KeyC: 'crouch',
-  KeyR: 'reload', KeyE: 'interact', KeyF: 'fire', Tab: 'scores', Escape: 'pause', KeyP: 'pause', Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyQ: 'tactical', KeyG: 'grenade',
-  Enter: 'skip', NumpadEnter: 'skip', KeyV: 'melee', KeyH: 'heal', Digit4: 'heal', KeyX: 'gear', KeyI: 'inspect', KeyM: 'map',
+  KeyF: 'fire', KeyZ: 'aim', KeyR: 'reload', KeyE: 'interact', KeyQ: 'slot',
+  // items on the number keys
+  Digit1: 'grenade', Digit2: 'tactical', Digit3: 'heal', Digit4: 'melee', Digit5: 'gear',
+  Numpad1: 'grenade', Numpad2: 'tactical', Numpad3: 'heal', Numpad4: 'melee', Numpad5: 'gear',
+  KeyG: 'grenade', KeyT: 'tactical', KeyH: 'heal', KeyV: 'melee', KeyX: 'gear',
+  Tab: 'scores', Escape: 'pause', KeyP: 'pause', Enter: 'skip', NumpadEnter: 'skip', KeyI: 'inspect', KeyM: 'map',
 };
 
 export const TOUCH_BUTTONS = [
@@ -27,6 +32,22 @@ export const TOUCH_BUTTONS = [
   { id: 'pause', label: 'pause', x: 0.52, y: 0.07, size: 40 },
   { id: 'map', label: 'map', x: 0.59, y: 0.07, size: 40 },
 ];
+
+// Portrait (phone held upright): buttons gather in the lower right, stick on the lower left, top row stays clear for the HUD.
+export const TOUCH_PORTRAIT = {
+  fire: { x: 0.77, y: 0.77, size: 84 }, fire2: { x: 0.12, y: 0.56, size: 54 }, aim: { x: 0.91, y: 0.62, size: 56 },
+  jump: { x: 0.89, y: 0.91, size: 60 }, crouch: { x: 0.69, y: 0.93, size: 52 }, reload: { x: 0.57, y: 0.82, size: 50 },
+  slot: { x: 0.47, y: 0.93, size: 48 }, grenade: { x: 0.62, y: 0.67, size: 46 }, tactical: { x: 0.91, y: 0.48, size: 42 },
+  interact: { x: 0.47, y: 0.71, size: 50 }, heal: { x: 0.30, y: 0.94, size: 44 }, gear: { x: 0.76, y: 0.55, size: 40 },
+  melee: { x: 0.52, y: 0.59, size: 42 }, scores: { x: 0.64, y: 0.035, size: 36 }, pause: { x: 0.76, y: 0.035, size: 36 }, map: { x: 0.88, y: 0.035, size: 36 },
+};
+export const isPortrait = () => window.innerHeight > window.innerWidth;
+// Default spot for a button in the current orientation, with the player's saved layout for that orientation on top.
+function touchSpot(b, s) {
+  const port = isPortrait(); const saved = (port ? s.touchLayoutP : s.touchLayout) || {};
+  const def = port ? { ...b, ...TOUCH_PORTRAIT[b.id] } : b;
+  return { x: (saved[b.id] || def).x, y: (saved[b.id] || def).y, size: def.size };
+}
 
 export class Input {
   constructor(canvas) {
@@ -55,7 +76,7 @@ export class Input {
   mouse(e, down) {
     if (!this.enabled || this.touchMode) return;
     if (down && !this.locked) this.requestLock(); // capture the mouse, but never swallow the shot
-    if (e.button === 0) this.mouseFire = down; if (e.button === 2) this.mouseAim = down;
+    if (e.button === 0) this.mouseL = down; if (e.button === 2) this.mouseR = down; this.mouseFire = !!(this.mouseL || this.mouseR); // left or right click shoots (easy on a touchpad)
     if (e.button === 1 && down) this.pressed.add('melee');
   }
   requestLock() { if (this.touchMode) return; if (!this.canvas.requestPointerLock) { this.lockFailed = true; return; } const quiet = (p) => { if (p && p.catch) p.catch(() => { this.lockFailed = true; }); return p; }; try { const p = this.canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => quiet(this.canvas.requestPointerLock())); } catch (e) { try { quiet(this.canvas.requestPointerLock()); } catch (e2) { /* unsupported */ } } }
@@ -91,15 +112,15 @@ export class Input {
   // ---------- Touch controls ----------
   setupTouch(root) {
     this.touchMode = true; this.touchRoot = root; root.innerHTML = '';
-    const s = getProfile().settings; const scale = s.buttonScale || 1; const layout = s.touchLayout || {};
+    const s = getProfile().settings; const scale = s.buttonScale || 1;
     const zoneL = el('div', 'tz-left'), zoneR = el('div', 'tz-right'); root.append(zoneL, zoneR);
     const stickBase = el('div', 'stick-base'), stickKnob = el('div', 'stick-knob'); stickBase.append(stickKnob); root.append(stickBase); stickBase.style.display = 'none';
     this.buttons = {};
     for (const b of TOUCH_BUTTONS) {
-      const d = el('div', 'tbtn tb-' + b.id); d.innerHTML = icon(b.label); d.setAttribute('aria-label', b.id); const pos = layout[b.id] || b; const sz = b.size * scale;
-      Object.assign(d.style, { left: `calc(${(pos.x * 100).toFixed(2)}% - ${sz / 2}px)`, top: `calc(${(pos.y * 100).toFixed(2)}% - ${sz / 2}px)`, width: sz + 'px', height: sz + 'px', fontSize: sz * 0.42 + 'px' });
+      const d = el('div', 'tbtn tb-' + b.id); d.innerHTML = icon(b.label); d.setAttribute('aria-label', b.id);
       root.append(d); this.buttons[b.id] = d; d.dataset.id = b.id;
     }
+    this.layoutTouch(); if (!this._touchResize) { this._touchResize = () => this.layoutTouch(); addEventListener('resize', this._touchResize); }
     let stickId = null, sx = 0, sy = 0, lookId = null, lx = 0, ly = 0; const R = 60 * scale;
     const btnTouches = new Map();
     zoneL.addEventListener('touchstart', (e) => { for (const t of e.changedTouches) if (stickId === null) { stickId = t.identifier; sx = t.clientX; sy = t.clientY; stickBase.style.display = 'block'; stickBase.style.left = sx - R + 'px'; stickBase.style.top = sy - R + 'px'; stickBase.style.width = stickBase.style.height = R * 2 + 'px'; stickKnob.style.transform = 'translate(-50%,-50%)'; } e.preventDefault(); }, { passive: false });
@@ -136,6 +157,15 @@ export class Input {
       }, { passive: false });
     }
   }
+  // Place every button for the current orientation. Runs again whenever the phone is turned.
+  layoutTouch() {
+    if (!this.buttons) return; const s = getProfile().settings; const short = Math.min(innerWidth, innerHeight);
+    const scale = (s.buttonScale || 1) * (short < 380 ? Math.max(0.7, short / 380) : 1); // small screens get smaller buttons
+    for (const b of TOUCH_BUTTONS) {
+      const d = this.buttons[b.id]; const pos = touchSpot(b, s); const sz = pos.size * scale;
+      Object.assign(d.style, { left: `calc(${(pos.x * 100).toFixed(2)}% - ${sz / 2}px)`, top: `calc(${(pos.y * 100).toFixed(2)}% - ${sz / 2}px)`, width: sz + 'px', height: sz + 'px', fontSize: sz * 0.42 + 'px' });
+    }
+  }
   setButtonVisible(id, v) { if (this.buttons && this.buttons[id]) this.buttons[id].style.display = v ? '' : 'none'; }
   teardownTouch() { if (this.touchRoot) this.touchRoot.innerHTML = ''; this.buttons = null; }
 }
@@ -144,18 +174,18 @@ function el(tag, cls) { const d = document.createElement(tag); d.className = cls
 
 // Drag-to-rearrange layout editor for touch buttons.
 export function openLayoutEditor(container, onDone) {
-  const s = getProfile().settings; const layout = { ...(s.touchLayout || {}) }; const scale = s.buttonScale || 1;
+  const s = getProfile().settings; const key = isPortrait() ? 'touchLayoutP' : 'touchLayout'; const layout = { ...(s[key] || {}) }; const scale = s.buttonScale || 1;
   const wrap = el('div', 'layout-editor');
-  wrap.innerHTML = '<div class="le-bar"><span>Drag buttons to rearrange</span><button class="btn small" data-a="reset">Reset</button><button class="btn small primary" data-a="save">Save</button></div>';
+  wrap.innerHTML = '<div class="le-bar"><span>Drag buttons to rearrange (' + (isPortrait() ? 'upright' : 'sideways') + ' layout)</span><button class="btn small" data-a="reset">Reset</button><button class="btn small primary" data-a="save">Save</button></div>';
   for (const b of TOUCH_BUTTONS) {
-    const d = el('div', 'tbtn'); d.innerHTML = icon(b.label); const p = layout[b.id] || b; const sz = b.size * scale;
+    const d = el('div', 'tbtn'); d.innerHTML = icon(b.label); const spot = touchSpot(b, s); const p = layout[b.id] || spot; const sz = spot.size * scale;
     Object.assign(d.style, { left: `calc(${p.x * 100}% - ${sz / 2}px)`, top: `calc(${p.y * 100}% - ${sz / 2}px)`, width: sz + 'px', height: sz + 'px', fontSize: sz * 0.42 + 'px' });
     const drag = (cx, cy) => { const x = Math.min(0.98, Math.max(0.02, cx / window.innerWidth)), y = Math.min(0.98, Math.max(0.04, cy / window.innerHeight)); layout[b.id] = { x, y }; d.style.left = `calc(${x * 100}% - ${sz / 2}px)`; d.style.top = `calc(${y * 100}% - ${sz / 2}px)`; };
     d.addEventListener('touchmove', (e) => { e.preventDefault(); drag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
     d.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') return; const mv = (ev) => drag(ev.clientX, ev.clientY); const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); }; window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); });
     wrap.append(d);
   }
-  wrap.querySelector('[data-a=reset]').onclick = () => { s.touchLayout = {}; saveProfile(); wrap.remove(); openLayoutEditor(container, onDone); };
-  wrap.querySelector('[data-a=save]').onclick = () => { s.touchLayout = layout; saveProfile(); wrap.remove(); onDone && onDone(); };
+  wrap.querySelector('[data-a=reset]').onclick = () => { s[key] = {}; saveProfile(); wrap.remove(); openLayoutEditor(container, onDone); };
+  wrap.querySelector('[data-a=save]').onclick = () => { s[key] = layout; saveProfile(); wrap.remove(); onDone && onDone(); };
   container.append(wrap);
 }

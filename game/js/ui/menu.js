@@ -59,6 +59,12 @@ export class Menu {
   }
 
   // ---------------- screens ----------------
+  // iPhone/iPad Safari can't go fullscreen from a web page, but a Home Screen app runs without the browser bars.
+  showA2hs() {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    return ios && !standalone && !this.P.a2hsHidden;
+  }
   s_main() {
     const ch = challengeDefs(); const done = ch.filter((c) => c.done).length; const newbie = !this.P.tutorialDone;
     const round = (go, ic, label, cls = '', i = 0) => `<button class="round drop ${cls}" style="--i:${i}" ${go.startsWith('act:') ? `data-act="${go.slice(4)}"` : `data-go="${go}"`}><span class="knob">${icon(ic)}</span>${label}</button>`;
@@ -72,6 +78,7 @@ export class Menu {
         ${round('howto', 'learn', 'How to play', newbie ? 'c-sun' : '', 3)}${round('characters', 'person', 'Characters', '', 4)}${round('loadouts', 'bag', 'Loadouts', '', 5)}${round('weapons', 'rifle', 'Armory', '', 6)}${round('stats', 'chart', 'Stats', '', 7)}${round('settings', 'gear', 'Settings', '', 8)}
       </div></div>
       <div class="home-side">
+        ${this.showA2hs() ? `<div class="a2hs clay drop" style="--i:9">${icon('share')}<span>Play full screen: tap Share, then <b>Add to Home Screen</b>.</span><button data-act="a2hs-hide" aria-label="Hide tip">${icon('close')}</button></div>` : ''}
         ${this.chalOpen ? `<div class="chal-list clay drop">${ch.map((c) => `<div class="chal ${c.done ? 'done' : ''}"><div>${esc(c.text)}</div><div class="cbar"><i style="width:${(c.progress / c.goal * 100).toFixed(0)}%"></i></div><small>${c.progress} of ${c.goal} · ${c.xp} XP${c.done ? ' · done' : ''}</small></div>`).join('')}</div>` : ''}
         <button class="chal-chip clay drop" style="--i:9" data-act="chal-toggle" aria-expanded="${!!this.chalOpen}">${icon('trophy')} Daily challenges ${done} of ${ch.length}</button>
       </div>`;
@@ -196,7 +203,7 @@ export class Menu {
       ${rng('renderScale', 0.5, 1, 0.05, 'Render scale')}${rng('fov', 60, 105, 1, 'Field of view')}${chk('showFps', 'Show FPS counter')}<small class="note">Graphics changes apply fully to the next match.</small>`;
     if (tab === 'controls') body = `${rng('sensitivity', 0.2, 3, 0.05, 'Mouse sensitivity')}${rng('adsSensitivity', 0.2, 1.5, 0.05, 'Sensitivity while zoomed')}${chk('autoSprint', 'Run automatically when you keep moving forward')}${chk('autoPickup', 'Pick up loot by walking over it')}${chk('pcAimAssist', 'Aim assist (helps your aim stick to enemies)')}${chk('keyHints', 'Show the key reminder bar during matches')}${chk('holdToAim', 'Hold to zoom (turn off to press once to zoom)')}${chk('invertY', 'Invert up and down')}${chk('holdToCrouch', 'Hold to crouch (instead of toggle)')}${chk('fullscreen', 'Fullscreen when a match starts')}
       <label>Crosshair color<input type="color" value="${s.crosshairColor}" data-set="crosshairColor"></label>
-      <div class="keys">${[['Left click or F', 'Shoot'], ['Right click or Z', 'Zoom'], ['Mouse or arrow keys', 'Aim'], ['W A S D', 'Move'], ['Space', 'Jump'], ['Shift', 'Run (also automatic)'], ['C or Ctrl', 'Crouch, slide while running'], ['R', 'Reload'], ['1, 2 or wheel', 'Switch weapon'], ['E', 'Open crates, swap guns'], ['G', 'Grenade'], ['Q', 'Smoke or stun'], ['V', 'Melee'], ['H', 'Heal'], ['X', 'Gear'], ['I', 'Inspect weapon'], ['Tab', 'Scores'], ['M', 'Map'], ['Esc', 'Pause']].map(([k, v]) => `<span><kbd>${k}</kbd>${v}</span>`).join('')}</div>`;
+      <div class="keys">${[['Arrow keys or W A S D', 'Move'], ['Touchpad or mouse', 'Look and aim'], ['Left or right click, or F', 'Shoot'], ['Z', 'Zoom'], ['Space', 'Jump'], ['Shift', 'Run (also automatic)'], ['C or Ctrl', 'Crouch, slide while running'], ['R', 'Reload'], ['Q or wheel', 'Switch weapon'], ['E', 'Open crates, swap guns'], ['1', 'Grenade'], ['2', 'Smoke or stun'], ['3', 'Heal'], ['4', 'Melee'], ['5', 'Gear'], ['I', 'Inspect weapon'], ['Tab', 'Scores'], ['M', 'Map'], ['Esc', 'Pause']].map(([k, v]) => `<span><kbd>${k}</kbd>${v}</span>`).join('')}</div>`;
     if (tab === 'touch') body = `${rng('touchSensitivity', 0.3, 3, 0.05, 'Touch look sensitivity')}${rng('buttonScale', 0.7, 1.5, 0.05, 'Button size')}${chk('aimAssist', 'Aim assist (touch)')}<div class="row"><button class="btn" data-act="edit-layout">Edit button layout</button></div><small class="note">Play in landscape. Pushing the stick fully forward sprints.</small>`;
     if (tab === 'audio') body = `${rng('master', 0, 1, 0.05, 'Master volume')}${rng('sfx', 0, 1, 0.05, 'Effects')}${rng('music', 0, 1, 0.05, 'Music')}${rng('ambience', 0, 1, 0.05, 'Ambience')}`;
     if (tab === 'data') body = `<p class="note">Progress, loadouts and settings are saved automatically on this device.</p><div class="row"><button class="btn danger" data-act="reset-all">Reset all progress</button></div>`;
@@ -219,13 +226,13 @@ export class Menu {
     const t = this.app.touch; const tab = this.howTab || (t ? 'mobile' : 'pc');
     const row = (keys, what) => `<div class="hk"><span>${keys.map((x) => `<kbd>${x}</kbd>`).join(' ')}</span><b>${what}</b></div>`;
     const sec = {
-      pc: `<h3>Keyboard and mouse</h3><div class="hkeys">${row(['Left Click', 'F'], 'Shoot')}${row(['Right Click', 'Z'], 'Zoom in to aim')}${row(['Mouse', 'Arrow keys'], 'Look and aim')}${row(['W', 'A', 'S', 'D'], 'Move. You start running on your own.')}${row(['Space'], 'Jump')}${row(['C', 'Ctrl'], 'Crouch, or slide while running')}${row(['R'], 'Reload')}${row(['1', '2', 'Wheel'], 'Switch weapon')}${row(['E'], 'Open crates (loot is picked up when you walk over it)')}${row(['G'], 'Throw a grenade')}${row(['Q'], 'Smoke or stun')}${row(['V'], 'Melee')}${row(['H'], 'Heal')}${row(['X'], 'Gear (recon pulse)')}${row(['Tab'], 'Scores (hold)')}${row(['M'], 'Map')}${row(['Esc'], 'Pause')}</div>
-        <p class="note">No mouse? Play with the keyboard only: arrow keys aim, F shoots, Z zooms. Aim assist pulls your aim toward enemies near the crosshair; you can turn it off in Settings.</p>`,
+      pc: `<h3>Keyboard and mouse</h3><div class="hkeys">${row(['Arrow keys'], 'Move. Hold Up and you start running on your own. W A S D works too.')}${row(['Touchpad', 'Mouse'], 'Look and aim')}${row(['Left click', 'Right click'], 'Shoot (either one works)')}${row(['Z'], 'Zoom in to aim')}${row(['Space'], 'Jump')}${row(['C', 'Ctrl'], 'Crouch, or slide while running')}${row(['R'], 'Reload')}${row(['Q', 'Wheel'], 'Switch weapon')}${row(['E'], 'Open crates (loot is picked up when you walk over it)')}${row(['1'], 'Throw a grenade')}${row(['2'], 'Smoke or stun')}${row(['3'], 'Heal')}${row(['4'], 'Melee')}${row(['5'], 'Gear (recon pulse)')}${row(['Tab'], 'Scores (hold)')}${row(['M'], 'Map')}${row(['Esc'], 'Pause')}</div>
+        <p class="note">On a laptop: arrows move, the touchpad aims, and a click shoots. F also shoots if clicking is awkward. Aim assist pulls your aim toward enemies near the crosshair; you can turn it off in Settings.</p>`,
       mobile: `<h3>Touch controls</h3><div class="hkeys">${row(['Left stick'], 'Move. Push all the way to run.')}${row(['Right side'], 'Drag to look')}${row(['Fire button'], 'Shoot. Drag on it to aim while firing.')}${row(['Aim button'], 'Zoom in')}${row(['Jump button'], 'Jump')}${row(['Crouch button'], 'Crouch, or slide while running')}${row(['Reload button'], 'Reload')}${row(['Swap button'], 'Switch weapon')}${row(['Grenade button'], 'Throw a grenade')}${row(['Heal button'], 'Heal')}</div><p class="note">Hold your phone sideways. You can move the buttons, change their size and turn aim assist on or off in Settings, under Touch.</p>`,
       modes: `<h3>Battle Royale</h3><p>You and 49 bots jump out of a plane. Press <kbd>Space</kbd> to jump, steer with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, and your parachute opens by itself. You land with nothing, so grab guns, ammo, armor and heals. Stay inside the white circle on the map: the storm outside hurts more each round. The last one standing wins.</p>
         <h3>Gun Game</h3><p>Everyone starts with the same pistol. Each knockout gives you the next of 20 guns. A melee knockout sends the other player back one gun. Get a knockout with the knife at the end to win.</p>
         <h3>Custom Match</h3><p>Pick the mode, map, number of bots and how hard they are. Play on your own, or make a room and send the 6 letter code or link to your friends.</p>`,
-      tips: `<h3>Tips</h3><ul class="tips"><li>Headshots do much more damage.</li><li>Zoom in with <kbd>Right Click</kbd> for accurate shots. You move slower while zoomed.</li><li>Bullets spread when you move or jump. Stop or crouch for long shots.</li><li>Fire short bursts so your gun doesn't climb.</li><li>In Gun Game and Custom matches your health comes back on its own. In Battle Royale, press <kbd>H</kbd> to heal.</li><li>The blue bar is armor. It soaks up damage before your health.</li><li>Red dots on the minimap are gunfire.</li><li>Gold crates hold better loot. Watch the sky for supply drops in Battle Royale.</li><li>Shoot red barrels to make them explode. Glass breaks too.</li></ul>`,
+      tips: `<h3>Tips</h3><ul class="tips"><li>Headshots do much more damage.</li><li>Zoom in with <kbd>Z</kbd> for accurate shots. You move slower while zoomed.</li><li>Bullets spread when you move or jump. Stop or crouch for long shots.</li><li>Fire short bursts so your gun doesn't climb.</li><li>In Gun Game and Custom matches your health comes back on its own. In Battle Royale, press <kbd>3</kbd> to heal.</li><li>The blue bar is armor. It soaks up damage before your health.</li><li>Red dots on the minimap are gunfire.</li><li>Gold crates hold better loot. Watch the sky for supply drops in Battle Royale.</li><li>Shoot red barrels to make them explode. Glass breaks too.</li></ul>`,
     };
     return `<h2>How to play</h2><div class="howto-hero panel"><div><h3>Training</h3><p class="note">Two minutes on the beach. Learn to look, move, run, slide, shoot, zoom, reload, pick up loot and throw grenades, then knock out 3 practice dummies. Every step shows the key to press.</p></div><button class="btn primary big" data-act="training">${icon('play')} Start training</button></div>
       <div class="tabs">${[['pc', 'computer', 'Computer'], ['mobile', 'phone', 'Phone'], ['modes', 'pad', 'Game modes'], ['tips', 'bulb', 'Tips']].map(([k, ic, n]) => `<button class="btn ${tab === k ? 'on' : ''}" data-act="howto-tab" data-v="${k}">${icon(ic)} ${n}</button>`).join('')}</div><div class="panel howto-body">${sec[tab]}</div>`;
@@ -233,7 +240,7 @@ export class Menu {
   welcome() {
     const p = this.P; p.tutorialOffered = true; saveProfile();
     const d = document.createElement('div'); d.className = 'pause welcome';
-    d.innerHTML = `<div class="panel"><h2>Welcome, Agent!</h2><p class="note" style="font-size:1.1em">New here? The training takes two minutes and shows you every control. ${this.app.touch ? 'The left stick moves, drag on the right to look, and the orange button shoots.' : 'Left click shoots, right click zooms and W A S D moves. No mouse? Arrow keys aim and F shoots.'}</p>
+    d.innerHTML = `<div class="panel"><h2>Welcome, Agent!</h2><p class="note" style="font-size:1.1em">New here? The training takes two minutes and shows you every control. ${this.app.touch ? 'The left stick moves, drag on the right to look, and the orange button shoots.' : 'Arrow keys move, the touchpad or mouse looks around, and a left or right click shoots.'}</p>
       <button class="btn primary big" data-a="train">${icon('play')} Start training</button><button class="btn" data-a="guide">${icon('learn')} Read the guide</button><button class="btn ghost" data-a="skip">I already know how to play</button></div>`;
     d.querySelector('[data-a=train]').onclick = () => { audio.click(); d.remove(); this.app.startTraining(); };
     d.querySelector('[data-a=guide]').onclick = () => { audio.click(); d.remove(); this.show('howto'); };
@@ -286,6 +293,7 @@ export class Menu {
       case 'reset-all': if (confirm('Reset ALL progress, loadouts and settings? This cannot be undone.')) { resetProfile(); this.show('main', false); } break;
       case 'again': this.app.playAgain(); break;
       case 'training': this.app.startTraining(); break;
+      case 'a2hs-hide': this.P.a2hsHidden = true; saveProfile(); this.show('main', false); break;
       case 'howto-tab': this.howTab = v; this.show('howto', false); break;
       case 'to-main': this.stack = []; this.show('main', false); break;
     }

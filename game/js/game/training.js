@@ -5,19 +5,19 @@ import { audio } from '../engine/audio.js';
 const k = (s) => `<kbd>${s}</kbd>`;
 // Each step: title, PC text, touch text, check(t, L, m) -> true when complete.
 export const STEPS = [
-  { title: 'Look around', pc: `Move the ${k('Mouse')} or press the ${k('Arrow keys')} to look around.`, touch: 'Drag on the right side of the screen to look around.', check: (t) => t.look > 2.5 },
-  { title: 'Walk', pc: `Walk with ${k('W')} ${k('A')} ${k('S')} ${k('D')}.`, touch: 'Push the left stick to walk.', check: (t) => t.dist > 7 },
-  { title: 'Run', pc: `Keep holding ${k('W')}. After a moment you start running on your own.`, touch: 'Push the stick all the way forward to run.', check: (t) => t.sprint > 1.2 },
+  { title: 'Look around', pc: `Slide your finger on the ${k('Touchpad')} (or move the mouse) to look around.`, touch: 'Drag on the right side of the screen to look around.', check: (t) => t.look > 2.5 },
+  { title: 'Walk', pc: `Walk with the ${k('Arrow keys')}.`, touch: 'Push the left stick to walk.', check: (t) => t.dist > 7 },
+  { title: 'Run', pc: `Keep holding ${k('Up')}. After a moment you start running on your own.`, touch: 'Push the stick all the way forward to run.', check: (t) => t.sprint > 1.2 },
   { title: 'Jump', pc: `Press ${k('Space')} to jump.`, touch: 'Tap the jump button.', check: (t) => t.jumps > 0 },
   { title: 'Crouch', pc: `Press ${k('C')} to crouch. Press it again to stand up.`, touch: 'Tap the crouch button.', check: (t) => t.crouched },
   { title: 'Slide', pc: `While you are running, press ${k('C')} to slide.`, touch: 'Run, then tap the crouch button to slide.', check: (t) => t.slid },
-  { title: 'Shoot', pc: `${k('Left Click')} or press ${k('F')} to shoot a practice dummy.`, touch: 'Hold the orange fire button. Hit a practice dummy.', check: (t, L) => L.stats.hits >= 1 },
-  { title: 'Zoom in', pc: `Hold ${k('Right Click')} or ${k('Z')} to zoom, then shoot. Zoomed shots are more accurate.`, touch: 'Tap the aim button to zoom, then shoot.', check: (t) => t.adsShot },
+  { title: 'Shoot', pc: `${k('Click')} (left or right) to shoot a practice dummy.`, touch: 'Hold the orange fire button. Hit a practice dummy.', check: (t, L) => L.stats.hits >= 1 },
+  { title: 'Zoom in', pc: `Hold ${k('Z')} to zoom, then click to shoot. Zoomed shots are more accurate.`, touch: 'Tap the aim button to zoom, then shoot.', check: (t) => t.adsShot },
   { title: 'Reload', pc: `Press ${k('R')} to reload.`, touch: 'Tap the reload button.', check: (t) => t.reloaded },
-  { title: 'Switch weapons', pc: `Press ${k('1')} or ${k('2')}, or scroll the mouse wheel.`, touch: 'Tap the swap button.', check: (t) => t.swapped },
+  { title: 'Switch weapons', pc: `Press ${k('Q')} to switch weapons (or scroll).`, touch: 'Tap the swap button.', check: (t) => t.swapped },
   { title: 'Pick up loot', pc: 'Walk over the glowing shotgun on the sand. You pick it up by touching it.', touch: 'Walk over the glowing shotgun to pick it up.', check: (t) => t.looted },
-  { title: 'Grenade', pc: `Press ${k('G')} to throw a grenade at the dummies.`, touch: 'Tap the grenade button.', check: (t) => t.threw },
-  { title: 'Melee', pc: `Press ${k('V')} to swing your knife.`, touch: 'Tap the knife button.', check: (t) => t.meleed },
+  { title: 'Grenade', pc: `Press ${k('1')} to throw a grenade at the dummies.`, touch: 'Tap the grenade button.', check: (t) => t.threw },
+  { title: 'Melee', pc: `Press ${k('4')} to swing your knife.`, touch: 'Tap the knife button.', check: (t) => t.meleed },
   { title: 'Final test', pc: 'Knock out 3 practice dummies. Headshots count for more!', touch: 'Knock out 3 practice dummies. Headshots count for more!', check: (t, L) => L.stats.kills >= 3 },
 ];
 

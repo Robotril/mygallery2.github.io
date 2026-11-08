@@ -171,7 +171,7 @@ export const PERKS = [
   { id: 'hardline', name: 'Deep Pockets', desc: '+1 lethal and +1 tactical.', icon: 'grenade' },
 ];
 export const GEAR = [
-  { id: 'medkit', name: 'Field Medkit', desc: 'Press H: heal 60 HP (once per life, recharges 45s).', cooldown: 45 },
+  { id: 'medkit', name: 'Field Medkit', desc: 'Press 3: heal 60 HP (once per life, recharges 45s).', cooldown: 45 },
   { id: 'plates', name: 'Armor Plates', desc: 'Start every life with +50 armor.', cooldown: 0 },
   { id: 'pulse', name: 'Recon Pulse', desc: 'Press X: reveal enemies within 45m for 5s (40s cooldown).', cooldown: 40 },
 ];
