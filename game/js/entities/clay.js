@@ -7,7 +7,7 @@ const geo = {
   sphere: new THREE.SphereGeometry(1, 14, 10), sphereLo: new THREE.SphereGeometry(1, 8, 6),
   capsule: new THREE.CapsuleGeometry(0.5, 1, 3, 10), capsuleLo: new THREE.CapsuleGeometry(0.5, 1, 2, 6),
   box: new THREE.BoxGeometry(1, 1, 1), cyl: new THREE.CylinderGeometry(1, 1, 1, 12), cone: new THREE.ConeGeometry(1, 1, 10),
-  torus: new THREE.TorusGeometry(1, 0.3, 6, 14), halfSphere: new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
+  torus: new THREE.TorusGeometry(1, 0.3, 6, 14), arc: new THREE.TorusGeometry(1, 0.32, 6, 12, Math.PI), halfSphere: new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2),
 };
 let quality = { bump: true, lowMat: false };
 export function setClayQuality(q) { quality = q; matCache.clear(); bakedMat = null; }
@@ -82,10 +82,10 @@ export class ClayFigure {
     const lo = new THREE.Group(); this.lo = lo; lo.visible = false; r.add(lo);
     // ---- low LOD ----
     mesh(geo.capsuleLo, L.outfit, 0.6 * b, 0.95, 0.42 * b, 0, 0.95, 0, lo);
-    mesh(geo.sphereLo, L.skin, 0.24, 0.24, 0.24, 0, 1.62, 0, lo);
+    mesh(geo.sphereLo, L.skin, 0.27, 0.27, 0.27, 0, 1.64, 0, lo);
     if (L.helmet !== 'none') mesh(geo.sphereLo, helmetColor(L), 0.27, 0.18, 0.27, 0, 1.72, 0, lo);
     // ---- high LOD ----
-    const hips = new THREE.Group(); hips.position.y = 0.92; hi.add(hips); this.hips = hips;
+    const hips = new THREE.Group(); hips.position.y = 0.92; hi.add(hips); this.hips = hips; hi.scale.setScalar(L.height || 1);
     mesh(geo.capsule, L.outfit2, 0.42 * b, 0.22, 0.3, 0, 0.0, 0, hips); // pelvis
     mesh(geo.box, darken(L.outfit2, 0.7), 0.44 * b, 0.06, 0.32, 0, 0.08, 0, hips, { smooth: true }); // belt
     mesh(geo.box, L.accent, 0.06, 0.05, 0.02, 0, 0.08, -0.165, hips, { smooth: true, rough: 0.3, metal: 0.6 }); // buckle
@@ -99,7 +99,8 @@ export class ClayFigure {
     // neck + head
     mesh(geo.cyl, L.skin, 0.09, 0.12, 0.09, 0, 0.58, 0, torso);
     const head = new THREE.Group(); head.position.y = 0.62; torso.add(head); this.head = head;
-    this.buildHead(head, L);
+    this.buildHead(head, L); head.scale.setScalar(L.headScale || 1.15); head.position.y = 0.6;
+    mesh(geo.torus, darken(L.outfit, 0.82), 0.115 * b, 0.115 * b, 0.3, 0, 0.555, 0, torso, { rx: Math.PI / 2 }); // collar
     // arms
     this.arms = [];
     for (const s of [-1, 1]) {
@@ -109,7 +110,8 @@ export class ClayFigure {
       const el = new THREE.Group(); el.position.y = -0.3; sh.add(el);
       mesh(geo.capsule, L.outfit, 0.14 * b, 0.2, 0.14 * b, 0, -0.13, 0, el);
       mesh(geo.cyl, L.gloves, 0.075 * b, 0.06, 0.075 * b, 0, -0.24, 0, el);
-      const hand = mesh(geo.sphere, L.gloves, 0.075, 0.085, 0.08, 0, -0.3, 0, el);
+      const hand = mesh(geo.sphere, L.gloves, 0.095, 0.105, 0.1, 0, -0.31, 0, el);
+      mesh(geo.torus, darken(L.outfit, 0.78), 0.072 * b, 0.072 * b, 0.28, 0, -0.205, 0, el, { rx: Math.PI / 2 }); // cuff
       if (L.acc === 'pads') mesh(geo.halfSphere, L.vest, 0.16 * b, 0.12, 0.16, 0, 0.02, 0, sh, { rz: s * 0.4 });
       this.arms.push({ sh, el, hand, s });
     }
@@ -122,8 +124,8 @@ export class ClayFigure {
       const kn = new THREE.Group(); kn.position.y = -0.42; th.add(kn);
       mesh(geo.sphere, darken(L.outfit2, 0.8), 0.1 * b, 0.09, 0.1, 0, 0.02, -0.04, kn);
       mesh(geo.capsule, L.outfit2, 0.17 * b, 0.26, 0.18 * b, 0, -0.18, 0, kn);
-      const boot = mesh(geo.capsule, L.boots, 0.17 * b, 0.12, 0.3, 0, -0.42, -0.05, kn, { rx: Math.PI / 2 });
-      mesh(geo.box, darken(L.boots, 0.6), 0.17 * b, 0.04, 0.3, 0, -0.5, -0.05, kn, { smooth: true });
+      const boot = mesh(geo.capsule, L.boots, 0.2 * b, 0.13, 0.34, 0, -0.42, -0.06, kn, { rx: Math.PI / 2 });
+      mesh(geo.box, darken(L.boots, 0.55), 0.2 * b, 0.05, 0.36, 0, -0.505, -0.06, kn, { smooth: true }); // sole
       this.legs.push({ th, kn, s });
     }
     // accessories
@@ -145,23 +147,48 @@ export class ClayFigure {
     mesh(geo.sphere, sk, 0.16, 0.12, 0.13, 0, 0.12, -0.06, h); // jaw / cheeks
     mesh(geo.sphere, darken(sk, 0.92), 0.045, 0.05, 0.045, 0, 0.17, -0.205, h); // nose
     const ears = [-1, 1].map((s) => mesh(geo.sphere, darken(sk, 0.95), 0.04, 0.06, 0.03, s * 0.205, 0.2, 0, h));
-    const visorFace = ['visorGlow', 'led', 'gasmask'].includes(L.mask) || L.helmet === 'visor' || L.helmet === 'bubble' && false;
-    if (!visorFace && L.mask !== 'goggles' && L.mask !== 'shades') {
+    const visorFace = ['visorGlow', 'led', 'gasmask'].includes(L.mask) || L.helmet === 'visor';
+    const eyesShown = !visorFace && L.mask !== 'goggles' && L.mask !== 'shades';
+    const browC = darken(L.hairColor || (L.hair === 'none' ? sk : '#3a2a1e'), 0.55);
+    if (eyesShown) {
+      // big glossy cartoon eyes; the lids are their own little group so they can blink
+      const lids = new THREE.Group(); lids.position.y = 0.305; h.add(lids); this.lids = lids;
+      const tilt = { stern: 0.14, angry: 0.34, raised: -0.24, calm: -0.06 }[L.brow || 'calm'] ?? 0; const browY = L.brow === 'raised' ? 0.338 : 0.318;
       for (const s of [-1, 1]) {
-        mesh(geo.sphere, '#fbfbf7', 0.045, 0.052, 0.03, s * 0.075, 0.25, -0.175, h, { smooth: true, rough: 0.3 });
-        mesh(geo.sphere, L.eye, 0.022, 0.026, 0.015, s * 0.075, 0.25, -0.2, h, { smooth: true, rough: 0.2 });
-        mesh(geo.box, darken(L.hair === 'none' ? sk : '#3a2a1e', 0.6), 0.07, 0.016, 0.02, s * 0.075, 0.31, -0.19, h, { rz: s * -0.15 });
+        mesh(geo.sphere, '#fbfbf7', 0.058, 0.066, 0.032, s * 0.078, 0.25, -0.172, h);
+        mesh(geo.sphere, L.eye, 0.033, 0.039, 0.016, s * 0.076, 0.246, -0.198, h);
+        mesh(geo.sphere, '#0d0d10', 0.017, 0.021, 0.01, s * 0.076, 0.244, -0.21, h);
+        mesh(geo.sphere, '#ffffff', 0.011, 0.011, 0.006, s * 0.076 + 0.013, 0.263, -0.215, h);
+        mesh(geo.capsule, browC, 0.032, 0.065, 0.03, s * 0.08, browY, -0.19, h, { rz: Math.PI / 2 + s * tilt });
+        mesh(geo.sphere, sk, 0.066, 0.074, 0.064, s * 0.078, -0.055, -0.17, lids);
       }
+      lids.scale.y = 0.1;
     }
-    if (L.mask === 'none' || L.mask === 'shades' || L.mask === 'goggles') mesh(geo.capsule, darken(sk, 0.7), 0.03, 0.06, 0.02, 0, 0.09, -0.185, h, { rz: Math.PI / 2 }); // mouth
+    if (L.cheeks) for (const s of [-1, 1]) mesh(geo.sphere, '#' + new THREE.Color(sk).lerp(new THREE.Color('#ff6f8a'), 0.45).getHexString(), 0.045, 0.028, 0.02, s * 0.125, 0.165, -0.155, h, { ry: s * 0.5 });
+    if (L.freckles) for (let i = 0; i < 6; i++) { const s = i < 3 ? -1 : 1, k = i % 3; mesh(geo.sphere, darken(sk, 0.72), 0.008, 0.008, 0.005, s * (0.06 + k * 0.022), 0.19 + (k % 2) * 0.012, -0.192 + k * 0.006, h); }
+    if (L.mask === 'none' || L.mask === 'shades' || L.mask === 'goggles') {
+      const mo = L.mouth || 'flat', lip = darken(sk, 0.55);
+      if (mo === 'grin') { mesh(geo.halfSphere, '#5a2328', 0.07, 0.05, 0.02, 0, 0.105, -0.188, h, { rz: Math.PI }); mesh(geo.box, '#fbfbf7', 0.1, 0.016, 0.012, 0, 0.098, -0.2, h); }
+      else if (mo === 'smile') mesh(geo.arc, lip, 0.05, 0.035, 0.03, 0, 0.115, -0.188, h, { rz: Math.PI });
+      else if (mo === 'frown') mesh(geo.arc, lip, 0.045, 0.03, 0.03, 0, 0.075, -0.188, h);
+      else if (mo === 'open') mesh(geo.sphere, '#5a2328', 0.032, 0.04, 0.02, 0, 0.095, -0.188, h);
+      else if (mo === 'smirk') mesh(geo.capsule, lip, 0.028, 0.07, 0.02, 0.02, 0.095, -0.188, h, { rz: Math.PI / 2 + 0.3 });
+      else mesh(geo.capsule, lip, 0.03, 0.06, 0.02, 0, 0.09, -0.185, h, { rz: Math.PI / 2 });
+    }
     // hair
     const hairC = L.hairColor || '#3a2a1e';
     if (L.hair === 'short') mesh(geo.halfSphere, hairC, 0.215, 0.2, 0.205, 0, 0.24, 0.01, h);
-    if (L.hair === 'mohawk') for (let i = 0; i < 6; i++) mesh(geo.cone, L.accent, 0.04, 0.16, 0.06, 0, 0.42 - Math.abs(i - 2.5) * 0.015, -0.12 + i * 0.05, h, { rx: -0.2 + i * 0.12 });
-    if (L.hair === 'spiky') for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; mesh(geo.cone, L.accent, 0.04, 0.14, 0.04, Math.cos(a) * 0.1, 0.4, Math.sin(a) * 0.1, h, { rx: Math.sin(a) * 0.6, rz: -Math.cos(a) * 0.6 }); }
-    if (L.hair === 'wild') for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; mesh(geo.sphere, '#f2f2f2', 0.08, 0.08, 0.08, Math.cos(a) * 0.17, 0.3 + Math.sin(i * 1.7) * 0.06, Math.sin(a) * 0.15 + 0.03, h); }
-    if (L.hair === 'ponytail') { mesh(geo.halfSphere, '#5a3a22', 0.215, 0.2, 0.205, 0, 0.24, 0.01, h); mesh(geo.capsule, '#5a3a22', 0.08, 0.22, 0.08, 0, 0.12, 0.24, h, { rx: 0.4 }); }
-    if (L.hair === 'beard') { mesh(geo.sphere, '#5a3a22', 0.17, 0.13, 0.12, 0, 0.06, -0.08, h); mesh(geo.halfSphere, '#5a3a22', 0.21, 0.18, 0.2, 0, 0.25, 0.01, h); }
+    if (L.hair === 'mohawk') for (let i = 0; i < 6; i++) mesh(geo.cone, L.hairColor || L.accent, 0.04, 0.16, 0.06, 0, 0.42 - Math.abs(i - 2.5) * 0.015, -0.12 + i * 0.05, h, { rx: -0.2 + i * 0.12 });
+    if (L.hair === 'spiky') for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; mesh(geo.cone, L.hairColor || L.accent, 0.04, 0.14, 0.04, Math.cos(a) * 0.1, 0.4, Math.sin(a) * 0.1, h, { rx: Math.sin(a) * 0.6, rz: -Math.cos(a) * 0.6 }); }
+    if (L.hair === 'wild') for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; mesh(geo.sphere, L.hairColor || '#f2f2f2', 0.08, 0.08, 0.08, Math.cos(a) * 0.17, 0.3 + Math.sin(i * 1.7) * 0.06, Math.sin(a) * 0.15 + 0.03, h); }
+    if (L.hair === 'ponytail') { mesh(geo.halfSphere, L.hairColor || '#5a3a22', 0.215, 0.2, 0.205, 0, 0.24, 0.01, h); mesh(geo.capsule, L.hairColor || '#5a3a22', 0.08, 0.22, 0.08, 0, 0.12, 0.24, h, { rx: 0.4 }); }
+    if (L.hair === 'beard') { mesh(geo.sphere, L.hairColor || '#5a3a22', 0.17, 0.13, 0.12, 0, 0.06, -0.08, h); mesh(geo.halfSphere, L.hairColor || '#5a3a22', 0.21, 0.18, 0.2, 0, 0.25, 0.01, h); }
+    if (L.hair === 'bob') { mesh(geo.halfSphere, hairC, 0.232, 0.22, 0.226, 0, 0.23, 0.015, h); for (const s of [-1, 1]) mesh(geo.capsule, hairC, 0.09, 0.16, 0.13, s * 0.175, 0.15, 0.03, h); mesh(geo.box, hairC, 0.3, 0.06, 0.05, 0, 0.36, -0.17, h, { rx: -0.3 }); }
+    if (L.hair === 'afro') { for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; mesh(geo.sphere, hairC, 0.12, 0.12, 0.12, Math.cos(a) * 0.2, 0.33 + Math.sin(i * 2.1) * 0.05, Math.sin(a) * 0.18 + 0.04, h); } mesh(geo.sphere, hairC, 0.26, 0.2, 0.24, 0, 0.36, 0.03, h); }
+    if (L.hair === 'buns') { mesh(geo.halfSphere, hairC, 0.224, 0.21, 0.216, 0, 0.235, 0.01, h); for (const s of [-1, 1]) mesh(geo.sphere, hairC, 0.095, 0.095, 0.095, s * 0.15, 0.42, 0.02, h); }
+    if (L.hair === 'quiff') { mesh(geo.halfSphere, hairC, 0.219, 0.19, 0.211, 0, 0.245, 0.015, h); mesh(geo.capsule, hairC, 0.13, 0.1, 0.17, 0, 0.42, -0.1, h, { rx: -0.9 }); }
+    if (L.hair === 'long') { mesh(geo.halfSphere, hairC, 0.226, 0.21, 0.222, 0, 0.235, 0.015, h); mesh(geo.box, hairC, 0.36, 0.34, 0.1, 0, 0.08, 0.15, h, { rx: 0.1 }); }
+    if (L.hair === 'braids') { mesh(geo.halfSphere, hairC, 0.223, 0.2, 0.216, 0, 0.24, 0.01, h); for (const s of [-1, 1]) for (let i = 0; i < 4; i++) mesh(geo.sphere, hairC, 0.046, 0.052, 0.046, s * 0.2, 0.15 - i * 0.07, 0.06 + i * 0.015, h); }
     // masks
     const m = L.mask;
     if (m === 'balaclava') { mesh(geo.sphere, darken(L.outfit, 0.9), 0.215, 0.2, 0.205, 0, 0.13, 0, h); }
@@ -244,14 +271,23 @@ export class ClayFigure {
     const pitch = s.pitch || 0; const rl = s.reloading ? Math.sin(Math.min(1, this.reloadT += dt / Math.max(0.5, s.reloadTime || 2)) * Math.PI) : (this.reloadT = 0);
     const melee = this.weaponId === 'knife';
     const R = this.arms[1], Lf = this.arms[0];
-    if (s.sprint && !s.firing) { R.sh.rotation.set(0.5, 0, -0.1); R.el.rotation.set(1.2, 0, 0); Lf.sh.rotation.set(0.8, 0, 0.5); Lf.el.rotation.set(1.0, 0, 0); this.gunMount.rotation.set(-0.6, 0.8, 0.3); this.gunMount.position.set(0.1, 0.25, -0.22); }
-    else if (melee) { R.sh.rotation.set(1.0 + pitch + this.recoil * 1.5, 0, -0.1); R.el.rotation.set(0.6, 0, 0); Lf.sh.rotation.set(0.3, 0, 0.2); Lf.el.rotation.set(0.8, 0, 0); this.gunMount.rotation.set(pitch - this.recoil, 0, 0); this.gunMount.position.set(0.2, 0.3 - this.recoil * 0.1, -0.35); }
+    // poses blend smoothly instead of snapping between run, aim and reload
+    const k = 1 - Math.exp(-dt * 16), kf = 1 - Math.exp(-dt * 40);
+    const rot = (o, x, y, z, kk = k) => { o.rotation.x += (x - o.rotation.x) * kk; o.rotation.y += (y - o.rotation.y) * kk; o.rotation.z += (z - o.rotation.z) * kk; };
+    const gp = (x, y, z, kk = k) => { const p = this.gunMount.position; p.x += (x - p.x) * kk; p.y += (y - p.y) * kk; p.z += (z - p.z) * kk; };
+    if (s.sprint && !s.firing) { const sw = Math.sin(ph) * 0.25 * amp; rot(R.sh, 0.5 + sw, 0, -0.1); rot(R.el, 1.2, 0, 0); rot(Lf.sh, 0.8 - sw, 0, 0.5); rot(Lf.el, 1.0, 0, 0); rot(this.gunMount, -0.6, 0.8, 0.3); gp(0.1, 0.25, -0.22); }
+    else if (melee) { rot(R.sh, 1.0 + pitch + this.recoil * 1.5, 0, -0.1, kf); rot(R.el, 0.6, 0, 0); rot(Lf.sh, 0.3, 0, 0.2); rot(Lf.el, 0.8, 0, 0); rot(this.gunMount, pitch - this.recoil, 0, 0, kf); gp(0.2, 0.3 - this.recoil * 0.1, -0.35, kf); }
     else {
-      const p = pitch + this.recoil * 0.25;
-      R.sh.rotation.set(1.25 + p * 0.9 - rl * 0.6, 0.0, -0.25); R.el.rotation.set(0.55, 0, 0.0);
-      Lf.sh.rotation.set(1.35 + p * 0.9 - rl * 0.9, 0.0, 0.75); Lf.el.rotation.set(0.35 + rl * 0.8, 0, 0);
-      this.gunMount.rotation.set(p - rl * 0.7, 0, 0); this.gunMount.position.set(0.11, 0.37 - rl * 0.06, -0.3 + this.recoil * 0.05);
+      const p = pitch + this.recoil * 0.25; const kk = this.recoil > 0.05 ? kf : k;
+      rot(R.sh, 1.25 + p * 0.9 - rl * 0.6, 0.0, -0.25, kk); rot(R.el, 0.55, 0, 0.0, kk);
+      rot(Lf.sh, 1.35 + p * 0.9 - rl * 0.9, 0.0, 0.75 - rl * 0.4, kk); rot(Lf.el, 0.35 + rl * 0.8, 0, 0, kk);
+      rot(this.gunMount, p - rl * 0.7, rl * 0.5, rl * 0.35, kk); gp(0.11, 0.37 - rl * 0.06, -0.3 + this.recoil * 0.05, kk);
     }
+    // idle breathing, glances, blinking (and a wince when hit)
+    const t = performance.now() / 1000;
+    if (!moving && !s.firing) { this.torso.position.y = 0.06 + Math.sin(t * 1.9 + this.phase) * 0.009; this.head.rotation.y += (Math.sin(t * 0.45 + this.phase * 3) * 0.22 - this.head.rotation.y) * k * 0.3; }
+    else { this.torso.position.y = 0.06; this.head.rotation.y *= 0.85; }
+    if (this.lids) { this.blinkT = (this.blinkT ?? 1 + Math.random() * 3) - dt; let lid = 0.1; if (this.blinkT < 0.13) lid = 1; if (this.blinkT < 0) this.blinkT = 2 + Math.random() * 3.5; if (Math.abs(this.squashV) > 3) lid = 1; this.lids.scale.y = lid; }
     this.head.rotation.x = pitch * 0.6;
     if (this.cape) this.cape.rotation.x = -0.15 - amp * 0.5 + Math.sin(ph * 2) * 0.05 * amp;
     // emote (victory dance)

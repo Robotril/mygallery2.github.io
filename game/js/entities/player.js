@@ -299,6 +299,7 @@ class Viewmodel {
       const hl = new THREE.Mesh(clayGeo.sphere, glove); hl.scale.set(0.045, 0.04, 0.06); hl.position.copy(fore); g.group.add(hl);
     }
     this.flash.parent?.remove(this.flash); g.muzzle.add(this.flash);
+    this.drawT = 1; // new weapon swings up into view
     this.isKnife = knife;
   }
   muzzleWorld(cam) {
@@ -310,6 +311,7 @@ class Viewmodel {
   }
   fireKick(st) {
     this.kickV += 0.4 + st.recoilV * 30; this.kickR += st.recoilV * 6 + 0.03; this.flashT = st.suppressed ? 0 : 0.045;
+    this.kickRoll = (this.kickRoll || 0) + (Math.random() - 0.5) * (0.05 + st.recoilV * 4);
     this.flash.material.rotation = Math.random() * 6; const s = (st.cls === 'shotgun' || st.cls === 'sniper' ? 0.35 : 0.22) * (0.8 + Math.random() * 0.4); this.flash.scale.setScalar(s);
   }
   update(dt, c, ctrl, cam) {
@@ -348,6 +350,10 @@ class Viewmodel {
     if (ctrl.throwAnim > 0) { const k = Math.sin((1 - ctrl.throwAnim / 0.5) * Math.PI); p.y -= k * 0.25; rx -= k * 0.6; }
     // inspect
     if (ctrl.inspectT > 0) { const t = 1 - ctrl.inspectT / 2.4; const k = Math.sin(Math.min(1, t * 1.1) * Math.PI); ry += k * -1.1; rz += k * 0.45; rx += Math.sin(t * Math.PI * 2) * 0.15 * k; p.x -= k * 0.05; p.z += k * 0.06; }
+    // draw animation after switching weapons, and the roll from recent shots
+    this.drawT = Math.max(0, (this.drawT || 0) - dt * 3.4); const dk = this.drawT * this.drawT;
+    p.y -= dk * 0.3; rx -= dk * 0.9; rz += dk * 0.45;
+    this.kickRoll = damp(this.kickRoll || 0, 0, 9, dt); rz += this.kickRoll * (1 - ads * 0.6);
     // channel (healing)
     if (c.channel) { p.y -= 0.25; rx -= 0.5; }
     p.x += bx + this.swayX * (1 - ads * 0.8); p.y += by + this.swayY * (1 - ads * 0.8); p.z += this.kickZ * 0.06;

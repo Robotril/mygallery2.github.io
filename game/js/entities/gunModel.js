@@ -2,8 +2,11 @@
 import * as THREE from 'three';
 import { WEAPON_MAP, SKIN_MAP } from '../data/weapons.js';
 import { skinTexture, clayBump } from '../engine/textures.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const box = new THREE.BoxGeometry(1, 1, 1);
+const rbox = new RoundedBoxGeometry(1, 1, 1, 3, 0.2); // soft clay-pressed edges for the big parts
+const arc = new THREE.TorusGeometry(1, 0.22, 6, 12, Math.PI);
 const cyl = new THREE.CylinderGeometry(1, 1, 1, 14);
 const cylLo = new THREE.CylinderGeometry(1, 1, 1, 8);
 const matCache = new Map();
@@ -70,9 +73,14 @@ function buildGunModelRaw(weaponId, build = {}) {
   const L = md.len, H = md.h; const isPistol = w.cls === 'pistol';
   const recZ = -L * 0.35;
   // receiver
-  part(box, body, 0.055, H * 0.55, L, 0, 0.02, recZ, root);
-  if (isPistol) part(box, body, 0.05, H * 0.35, L * 1.02, 0, 0.02 + H * 0.42, recZ - 0.005, root); // slide
-  else part(box, accent, 0.05, H * 0.4, L * 0.45, 0, 0.02 + H * 0.05, recZ - L * 0.42, root); // handguard
+  part(rbox, body, 0.056, H * 0.55, L, 0, 0.02, recZ, root);
+  const stripe = M('#ff8a3d', { rough: 0.4, metal: 0.1 }); // CLAYFRONT orange accent line
+  for (const s of [-1, 1]) part(box, stripe, 0.004, H * 0.07, L * 0.42, s * 0.029, 0.02 + H * 0.12, recZ + L * 0.08, root);
+  part(box, dark, 0.006, H * 0.16, L * 0.16, 0.029, 0.02 + H * 0.12, recZ + L * 0.22, root); // ejection port
+  part(arc, dark, 0.034, 0.034, 0.05, 0, -H * 0.27, (isPistol ? 0.0 : recZ + L * 0.3) - 0.035, root, 0, Math.PI / 2, Math.PI); // trigger guard
+  part(box, dark, 0.008, 0.03, 0.008, 0, -H * 0.27 - 0.012, (isPistol ? 0.0 : recZ + L * 0.3) - 0.035, root, 0.3, 0, 0); // trigger
+  if (isPistol) { part(rbox, body, 0.05, H * 0.35, L * 1.02, 0, 0.02 + H * 0.42, recZ - 0.005, root); for (let i = 0; i < 4; i++) part(box, dark, 0.052, H * 0.2, 0.004, 0, 0.02 + H * 0.42, recZ + L * 0.32 + i * 0.012, root); } // slide + serrations
+  else { part(rbox, accent, 0.052, H * 0.42, L * 0.45, 0, 0.02 + H * 0.05, recZ - L * 0.42, root); for (let i = 0; i < 3; i++) for (const s of [-1, 1]) part(box, dark, 0.004, H * 0.12, L * 0.06, s * 0.027, 0.02 + H * 0.06, recZ - L * 0.3 - i * L * 0.09, root); } // handguard + vents
   // barrel
   let bLen = md.barrel + L * 0.25; if (build.barrel === 'long') bLen += 0.12;
   const frontZ = recZ - L / 2;
@@ -89,24 +97,25 @@ function buildGunModelRaw(weaponId, build = {}) {
     if (build.barrel === 'suppressor') { part(cyl, M('#2a2c30', { rough: 0.6 }), md.br * 2.1, 0.17, md.br * 2.1, 0, 0.03 + (isPistol ? H * 0.3 : 0), mz - 0.08, root, Math.PI / 2, 0, 0); mz -= 0.17; }
     else if (build.barrel === 'comp' || md.brake) { part(box, dark, md.br * 3, md.br * 2.4, 0.06, 0, 0.03 + (isPistol ? H * 0.3 : 0), mz - 0.03, root); mz -= 0.06; }
     else if (build.barrel === 'choke') { part(cyl, accent, md.br * 1.4, 0.05, md.br * 1.4, 0, 0.03, mz - 0.02, root, Math.PI / 2, 0, 0); mz -= 0.05; }
+    else if (!isPistol) { part(cylLo, dark, md.br * 1.5, 0.05, md.br * 1.5, 0, 0.03, mz - 0.02, root, Math.PI / 2, 0, 0); for (let i = 0; i < 4; i++) part(box, M('#1d1f22', { rough: 0.6 }), md.br * 0.5, md.br * 3.2, 0.03, 0, 0.03, mz - 0.025, root, 0, 0, i * Math.PI / 4); mz -= 0.05; } // flash hider
     out.muzzle.position.set(0, 0.03 + (isPistol ? H * 0.3 : 0), mz);
   }
   // stock
-  if (md.stock === 'full') { part(box, accent, 0.045, H * 0.55, 0.22, 0, 0.0, 0.13 + L * 0.15 - 0.05, root, 0.08, 0, 0); part(box, dark, 0.05, H * 0.6, 0.02, 0, -0.005, 0.24 + L * 0.15 - 0.05, root); }
+  if (md.stock === 'full') { part(rbox, accent, 0.046, H * 0.55, 0.22, 0, 0.0, 0.13 + L * 0.15 - 0.05, root, 0.08, 0, 0); part(box, dark, 0.05, H * 0.6, 0.02, 0, -0.005, 0.24 + L * 0.15 - 0.05, root); }
   else if (md.stock === 'skeleton') { part(box, dark, 0.012, 0.012, 0.2, 0.018, 0.04, 0.1, root); part(box, dark, 0.012, 0.012, 0.2, -0.018, 0.04, 0.1, root); part(box, dark, 0.05, 0.08, 0.015, 0, 0.01, 0.2, root); }
-  else if (md.stock === 'bullpup') { part(box, body, 0.056, H * 0.6, 0.2, 0, 0.0, 0.1, root); }
+  else if (md.stock === 'bullpup') { part(rbox, body, 0.056, H * 0.6, 0.2, 0, 0.0, 0.1, root); }
   // grip
-  if (md.grip === 'pistol') part(box, accent, 0.04, 0.1, 0.045, 0, -H * 0.3 - 0.03, isPistol ? -0.0 : 0.0, root, 0.25, 0, 0);
-  else part(box, accent, 0.04, 0.07, 0.05, 0, -H * 0.25, 0.02, root, 0.5, 0, 0);
+  if (md.grip === 'pistol') part(rbox, accent, 0.042, 0.1, 0.048, 0, -H * 0.3 - 0.03, isPistol ? -0.0 : 0.0, root, 0.25, 0, 0);
+  else part(rbox, accent, 0.042, 0.07, 0.052, 0, -H * 0.25, 0.02, root, 0.5, 0, 0);
   // magazine
   const magExt = build.mag === 'ext' ? 1.5 : build.mag === 'drum' ? 0 : 1;
   const magZ = isPistol ? 0 : recZ + L * 0.12;
   const magMat = M('#26282b', { rough: 0.5, metal: 0.4 });
   const magGroup = new THREE.Group(); magGroup.position.set(0, -H * 0.2, magZ); root.add(magGroup);
   let mt = md.magT; if (build.mag === 'drum' && !['tube', 'cyl', 'none', 'pistol', 'pistolLong'].includes(mt)) mt = 'drum';
-  if (mt === 'box') part(box, magMat, 0.035, 0.12 * magExt, 0.06, 0, -0.06 * magExt, 0, magGroup);
+  if (mt === 'box') { part(rbox, magMat, 0.035, 0.12 * magExt, 0.06, 0, -0.06 * magExt, 0, magGroup); part(rbox, dark, 0.04, 0.012, 0.066, 0, -0.12 * magExt, 0, magGroup); }
   else if (mt === 'boxBig') part(box, magMat, 0.07, 0.11, 0.11, 0.02, -0.05, 0, magGroup);
-  else if (mt === 'curved' || mt === 'curvedBig') { const s = mt === 'curvedBig' ? 1.2 : 1; part(box, magMat, 0.035, 0.09 * s * magExt, 0.055, 0, -0.04 * s * magExt, 0, magGroup, -0.15); part(box, magMat, 0.035, 0.07 * s * magExt, 0.055, 0, -0.11 * s * magExt, -0.018, magGroup, -0.45); }
+  else if (mt === 'curved' || mt === 'curvedBig') { const s = mt === 'curvedBig' ? 1.2 : 1; part(rbox, magMat, 0.035, 0.09 * s * magExt, 0.055, 0, -0.04 * s * magExt, 0, magGroup, -0.15); part(rbox, magMat, 0.035, 0.07 * s * magExt, 0.055, 0, -0.11 * s * magExt, -0.018, magGroup, -0.45); }
   else if (mt === 'drum') part(cyl, magMat, 0.085, 0.06, 0.085, 0, -0.08, 0, magGroup, 0, 0, Math.PI / 2);
   else if (mt === 'drumSmall') part(cyl, magMat, 0.06, 0.05, 0.06, 0, -0.06, 0, magGroup, 0, 0, Math.PI / 2);
   else if (mt === 'pistol') part(box, magMat, 0.032, 0.03, 0.04, 0, -0.13, 0.01, magGroup);

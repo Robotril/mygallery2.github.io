@@ -11,10 +11,10 @@ import { setTextureQuality } from './textures.js';
 import { setClayQuality } from '../entities/clay.js';
 
 export const PRESETS = {
-  low: { name: 'Low', pixelRatio: 0.7, shadows: false, shadowSize: 512, bloom: false, ao: false, drawDist: 150, fogMul: 1.5, texSize: 256, aniso: 1, bump: false, lowMat: true, terrainSeg: 4, waterSeg: 60, waterDetail: 0.4, particles: 0.4, pedestrians: 6, traffic: 6, clouds: 6, antialias: false },
-  medium: { name: 'Medium', pixelRatio: 1, shadows: true, shadowSize: 1024, bloom: false, ao: false, drawDist: 210, fogMul: 1.15, texSize: 512, aniso: 2, bump: true, lowMat: false, terrainSeg: 3, waterSeg: 110, waterDetail: 0.7, particles: 0.7, pedestrians: 14, traffic: 10, clouds: 10, antialias: false },
-  high: { name: 'High', pixelRatio: 1.5, shadows: true, shadowSize: 2048, bloom: true, ao: false, drawDist: 290, fogMul: 1, texSize: 1024, aniso: 4, bump: true, lowMat: false, terrainSeg: 2, waterSeg: 180, waterDetail: 1, particles: 1, pedestrians: 22, traffic: 16, clouds: 16, antialias: true },
-  ultra: { name: 'Ultra', pixelRatio: 2, shadows: true, shadowSize: 4096, bloom: true, ao: true, drawDist: 400, fogMul: 0.85, texSize: 1024, aniso: 8, bump: true, lowMat: false, terrainSeg: 1.5, waterSeg: 240, waterDetail: 1.2, particles: 1.3, pedestrians: 30, traffic: 22, clouds: 22, antialias: true },
+  low: { name: 'Low', grass: 0.35, grassFar: 32, grassMax: 20000, grassBlades: 5, rocks: 0.5,  pixelRatio: 0.7, shadows: false, shadowSize: 512, bloom: false, ao: false, drawDist: 150, fogMul: 1.5, texSize: 256, aniso: 1, bump: false, lowMat: true, terrainSeg: 4, waterSeg: 60, waterDetail: 0.4, particles: 0.4, pedestrians: 6, traffic: 6, clouds: 6, antialias: false },
+  medium: { name: 'Medium', grass: 0.7, grassFar: 45, grassMax: 45000, grassBlades: 6, rocks: 0.8,  pixelRatio: 1, shadows: true, shadowSize: 1024, bloom: false, ao: false, drawDist: 210, fogMul: 1.15, texSize: 512, aniso: 2, bump: true, lowMat: false, terrainSeg: 3, waterSeg: 110, waterDetail: 0.7, particles: 0.7, pedestrians: 14, traffic: 10, clouds: 10, antialias: false },
+  high: { name: 'High', grass: 1.1, grassFar: 60, grassMax: 80000, grassBlades: 7, rocks: 1,  pixelRatio: 1.5, shadows: true, shadowSize: 2048, bloom: true, ao: false, drawDist: 290, fogMul: 1, texSize: 1024, aniso: 4, bump: true, lowMat: false, terrainSeg: 2, waterSeg: 180, waterDetail: 1, particles: 1, pedestrians: 22, traffic: 16, clouds: 16, antialias: true },
+  ultra: { name: 'Ultra', grass: 1.6, grassFar: 80, grassMax: 130000, grassBlades: 8, rocks: 1.3,  pixelRatio: 2, shadows: true, shadowSize: 4096, bloom: true, ao: true, drawDist: 400, fogMul: 0.85, texSize: 1024, aniso: 8, bump: true, lowMat: false, terrainSeg: 1.5, waterSeg: 240, waterDetail: 1.2, particles: 1.3, pedestrians: 30, traffic: 22, clouds: 22, antialias: true },
 };
 export const PRESET_ORDER = ['low', 'medium', 'high', 'ultra'];
 const PIXEL_BUDGET = { low: 0.55e6, medium: 1.15e6, high: 2.1e6, ultra: 3.7e6 };
@@ -138,6 +138,14 @@ export class Graphics {
     if (this.composer) { r.autoClear = true; this.composer.render(); }
     else { r.autoClear = true; r.render(scene, this.camera); }
     if (viewmodel && this.vmScene.children.length > 2) { r.autoClear = false; r.clearDepth(); r.render(this.vmScene, this.vmCamera); r.autoClear = true; }
+    // a small extra 3D view drawn into one corner of the same canvas (the paused character); one WebGL context only
+    const o = this.overlay; if (o && o.el.isConnected) {
+      const b = o.el.getBoundingClientRect(); if (b.width > 4 && b.height > 4) {
+        const H = this.canvas.clientHeight || innerHeight; o.camera.aspect = b.width / b.height; o.camera.updateProjectionMatrix();
+        r.autoClear = false; r.clearDepth(); r.setScissorTest(true); r.setScissor(b.left, H - b.bottom, b.width, b.height); r.setViewport(b.left, H - b.bottom, b.width, b.height);
+        r.render(o.scene, o.camera); r.setScissorTest(false); r.setViewport(0, 0, this.canvas.clientWidth || innerWidth, H); r.autoClear = true;
+      }
+    }
   }
 
   // FPS tracking with automatic quality adaptation (auto mode only)

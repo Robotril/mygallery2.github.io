@@ -47,16 +47,24 @@ export class Showcase {
     if (this.figure) this.figure.setWeapon(id, build);
   }
   setMode(mode) { this.mode = mode; }
+  // results screen: show a character on the pedestal in a pose that matches how the match went
+  setResults(look, pose) { if (look) this.setCharacter(look); this.pose = pose; this.mode = 'results'; }
   drag(dx) { this.dragV += dx * 0.01; }
   update(dt) {
     this.t += dt; const cam = this.gfx.camera; const m = this.mode;
-    let target = { main: [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]], character: [[0.25, 2.0, 5.2], [0, 1.7, 0]], weapons: [[0, 1.7, 2.2], [0, 1.55, 0]], loadout: [[2.6, 2.1, 5.6], [-0.4, 1.7, 0]] }[m] || [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]];
+    let target = { main: [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]], character: [[0.25, 2.0, 5.2], [0, 1.7, 0]], results: [[-2.7, 1.9, 6.4], [-2.15, 1.45, 0]], weapons: [[0, 1.7, 2.2], [0, 1.55, 0]], loadout: [[2.6, 2.1, 5.6], [-0.4, 1.7, 0]] }[m] || [[3.4, 2.3, 6.4], [-0.9, 1.75, 0]];
     if (cam.aspect < 1 && (m === 'main' || !m)) target = [[1.4, 1.5, 13], [0.1, -0.5, 0]]; // upright phone: character sits in the top half
     this.camPos.lerp(new THREE.Vector3(...target[0]), 1 - Math.exp(-dt * 3)); this.camLook.lerp(new THREE.Vector3(...target[1]), 1 - Math.exp(-dt * 3));
     const sway = Math.sin(this.t * 0.25) * 0.25; cam.position.set(this.camPos.x + sway, this.camPos.y + Math.sin(this.t * 0.4) * 0.05, this.camPos.z); cam.lookAt(this.camLook);
     cam.fov = 40; cam.updateProjectionMatrix();
     this.spin += (this.dragV + (m === 'weapons' ? 0.4 : 0.15)) * dt; this.dragV = damp(this.dragV, 0, 3, dt);
-    if (this.figure) { this.figure.root.visible = m !== 'weapons'; this.figure.root.rotation.y = m === 'main' ? Math.PI - 0.45 + Math.sin(this.t * 0.3) * 0.3 : this.spin + Math.PI; this.figure.animate(dt, { speed: 0, crouch: 0, pitch: Math.sin(this.t * 0.8) * 0.05, emote: false }); this.figure.hips.position.y = 0.92 + Math.sin(this.t * 1.6) * 0.012; }
+    if (this.figure) { this.figure.root.visible = m !== 'weapons'; this.figure.root.rotation.y = m === 'main' ? Math.PI - 0.45 + Math.sin(this.t * 0.3) * 0.3 : m === 'results' ? Math.PI - 0.35 : this.spin + Math.PI;
+      const pose = m === 'results' ? this.pose : null;
+      this.figure.animate(dt, { speed: 0, crouch: 0, pitch: pose === 'sad' ? -0.5 : Math.sin(this.t * 0.8) * 0.05, emote: pose === 'victory' });
+      if (pose !== 'victory') this.figure.hips.position.y = 0.92 + Math.sin(this.t * 1.6) * 0.012;
+      if (pose === 'sad') { this.figure.head.rotation.x = 0.5; this.figure.torso.rotation.x = 0.18; }
+      if (pose === 'cheer') { const a = this.figure.arms[1]; a.sh.rotation.set(2.9 + Math.sin(this.t * 5) * 0.25, 0, -0.35); a.el.rotation.set(0.2, 0, 0); this.figure.hips.position.y = 0.92 + Math.abs(Math.sin(this.t * 3)) * 0.05; }
+    }
     this.gunGroup.visible = m === 'weapons'; this.gunGroup.rotation.y = this.spin + Math.PI / 2; this.gunGroup.rotation.z = Math.sin(this.t * 0.6) * 0.08;
     this.water.uniforms.uTime.value = this.t; this.ring.material.color.setHSL(0.07, 0.8, 0.45 + Math.sin(this.t * 2) * 0.08);
   }

@@ -166,8 +166,11 @@ class AudioEngine {
       every(20, 45, () => { const o = this.out(around(160), 20, 600, this.ambBus); if (!o) return; const t = c.currentTime; for (let i = 0; i < 6; i++) this.tone(t + i * 0.9, 0.9, o.node, { type: 'sine', freq: 650, to: 1150, gain: 0.05 }); });
       every(5, 11, () => { const o = this.out(around(25 + Math.random() * 25), 6, 200, this.ambBus); if (!o) return; const t = c.currentTime; for (let i = 0; i < 6; i++) this.noise(this.white, t + i * 0.18 + Math.random() * 0.1, 0.15, o.node, { type: 'bandpass', freq: 500 + Math.random() * 1200, q: 5, gain: 0.05, attack: 0.03 }); });
     }
-    this.amb = { nodes, timers };
+    // rain layer, silent until the weather brings a shower
+    const rain = bed(this.white, 'highpass', 1400, 0); const patter = bed(this.white, 'bandpass', 4200, 0, 0.7, 0);
+    this.amb = { nodes, timers, rain, patter };
   }
+  setRain(k) { if (!this.amb?.rain || !this.ctx) return; const t = this.ctx.currentTime; this.amb.rain.gain.setTargetAtTime(0.16 * k, t, 0.6); this.amb.patter.gain.setTargetAtTime(0.05 * k, t, 0.6); }
   stopAmbience() { if (!this.amb) return; for (const n of this.amb.nodes) try { n.stop(); } catch (e) { /* already stopped */ } for (const t of this.amb.timers) clearTimeout(t); this.amb = null; }
 }
 

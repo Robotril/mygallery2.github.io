@@ -33,6 +33,20 @@ Running is automatic once you've held Up for a moment, gentle aim assist helps o
 
 **Phone (sideways or upright):** floating left stick (push fully forward to sprint), drag the right side to look, drag on the fire button to aim while shooting, plus buttons for aim, jump, crouch/slide, reload, swap, grenade, tactical, interact, heal, gear, melee, scoreboard, pause and map. The buttons have a separate layout for each way you hold the phone, and switch over when you turn it. Button positions (saved per orientation), size and sensitivity are adjustable under **Settings → Touch**, and aim assist is optional.
 
+## World, characters and effects
+
+- **Living maps** (`js/world/nature.js`): wind-blown grass that parts around players, flowers, bushes, pebbles and boulders on Coral Cove, planters along Neon Harbor's sidewalks, palms and trees that sway in gusts, drifting pollen and dust. Grass is chunked and fades with distance; how much grows depends on the graphics preset (about 14k tufts on Low, 45k on High, 65k on Ultra). None of it has collision, so gameplay and bots are unchanged.
+- **Weather**: most matches are dry, some get passing showers that roll in during the match with rain, mist, dimmer light and a rain sound layer. The pattern comes from the map seed, so everyone in a room sees the same sky.
+- **Characters**: bigger cartoon heads, glossy eyes that blink (and squeeze shut when hit), eyebrows and mouths with personality, rosy cheeks and freckles on some, six new hairstyles (bob, afro, space buns, quiff, long, braids), chunkier hands and boots, collars and cuffs, and a body shape per character. Poses now blend smoothly between running, aiming and reloading, and idle characters breathe and glance around.
+- **Weapons and effects**: rounded gun bodies with ejection ports, trigger guards, vents, flash hiders and an orange CLAYFRONT stripe; guns swing up when you switch; shots add a little roll; real brass casings tumble and bounce; impacts spark; explosions throw clay debris, leave a scorch mark and keep burning with a smoke column.
+
+## Pause and results
+
+- **Pause** shows the mode, map, your knockouts, deaths, damage and clock, four clear buttons (Resume, Settings, Controls, Leave match) and your character idling beside the menu. Esc resumes.
+- **Results** are staged by how you did: first place, top 3, mid-table and last each get their own title, medal and character pose (your character celebrates when you place top 3; otherwise the winner takes the pedestal). Stats, an animated XP bar, rewards and a ranked leaderboard follow.
+- **Leaving a match** now shows "You left the match" with no winner, no XP and no change to your stats. It used to be recorded as a loss.
+- **Placements** are correct: Battle Royale ranks players by the place they finished, not by kills, and nobody is shown as #1 unless they won.
+
 ## Phones and the Home Screen
 
 The game plays sideways or upright. Upright, the camera widens so you can still see to the sides, the gun moves in to stay on screen, and the menus stack into one column. Inside a phone browser the address and tab bars take a lot of room, and iPhone Safari doesn't allow web pages to go fullscreen, so on iPhone and iPad the home screen shows a tip: tap Share, then **Add to Home Screen**. Opened from the Home Screen icon, the game runs fullscreen with no browser bars (`manifest.webmanifest`, icons in `icons/`). Layouts also keep clear of the iPhone notch and home bar.

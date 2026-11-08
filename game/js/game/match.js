@@ -14,6 +14,7 @@ import { WEAPON_MAP, damageAt, LETHALS, AMMO } from '../data/weapons.js';
 import { audio } from '../engine/audio.js';
 import { Emitter, mulberry32, botName, clamp } from '../core/util.js';
 import { Ambient } from '../world/ambient.js';
+import { Nature } from '../world/nature.js';
 
 const V1 = new THREE.Vector3(), V2 = new THREE.Vector3();
 export const SKILLS = {
@@ -47,6 +48,9 @@ export class Match {
     progress(0.75, 'Placing loot…'); await tick();
     this.effects = new Effects(this.scene, q); this.loot = new LootSystem(this);
     this.ambient = new Ambient(this, q);
+    progress(0.85, 'Growing the grass…'); await tick();
+    this.audioRain = (k) => audio.setRain(k);
+    this.nature = new Nature(this, q);
     for (const s of this.map.statues || []) {
       const look = { ...resolveLook(s.char) }; for (const k of ['skin', 'outfit', 'outfit2', 'vest', 'accent', 'boots', 'gloves']) look[k] = '#b48a52'; look.eye = '#6b4a22';
       const f = new ClayFigure(look); f.root.position.set(s.x, s.y, s.z); f.root.scale.setScalar(s.scale); f.root.rotation.y = s.rot; f.setWeapon('sentinel', {});
@@ -396,7 +400,7 @@ export class Match {
     } else for (const c of this.combatants) if (c.brain) { c.vel.x *= 0.8; c.vel.z *= 0.8; }
     // prune noises
     while (this.noises.length && this.time - this.noises[0].t > 2) this.noises.shift();
-    this.effects.update(dt); this.ambient.update(dt);
+    this.effects.update(dt); this.ambient.update(dt); this.nature?.update(dt);
     const cam = this.gfx.camera.position; this.loot.update(dt, cam);
     // animate figures
     for (const c of this.combatants) {
@@ -428,7 +432,7 @@ export class Match {
   }
 
   dispose() {
-    this.ambient?.dispose?.(); audio.stopAmbience();
+    this.ambient?.dispose?.(); this.nature?.dispose(); audio.stopAmbience();
     this.scene.traverse((o) => { if (o.geometry && !o.geometry.userData?.shared) o.geometry.dispose?.(); });
     this.gfx.composer?.dispose?.(); this.gfx.composer = null; this.gfx.scene = null; this.sync?.dispose();
     if (this.gfx.envRT) { this.gfx.envRT.dispose(); this.gfx.envRT = null; }

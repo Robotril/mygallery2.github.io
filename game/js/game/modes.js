@@ -254,7 +254,8 @@ export class BattleRoyaleMode extends BaseMode {
     const alive = this.m.combatants.filter((c) => c.alive).length; vic.place = alive + 1; vic.stats.score += Math.max(0, 50 - vic.place) * 4;
     if (vic.kind === 'remote') this.m.netSend(vic.peerId, { t: 'place', p: vic.place });
   }
-  scoreboard() { return super.scoreboard().sort((a, b) => (a.alive === b.alive ? b.kills - a.kills : a.alive ? -1 : 1)); }
+  // still standing first; everyone knocked out is ordered by the place they finished in (lower is better)
+  scoreboard() { return super.scoreboard().sort((a, b) => (a.alive === b.alive ? (a.alive ? b.kills - a.kills : (a.place || 999) - (b.place || 999)) : a.alive ? -1 : 1)); }
   onTimeUp() {}
   get spawnArea() { return this.m.map.arenaCustomLarge; }
 }

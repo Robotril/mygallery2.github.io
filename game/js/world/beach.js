@@ -47,14 +47,14 @@ export function buildBeach(scene, quality, seed = 1) {
   const g = new THREE.PlaneGeometry(gw, gh, Math.floor(gw / seg), Math.floor(gh / seg)); g.rotateX(-Math.PI / 2);
   g.translate(world.hmMinX + gw / 2 + 1, 0, world.hmMinZ + gh / 2 + 1);
   const pos = g.attributes.position; const cols = []; const c = new THREE.Color();
-  const sandC = new THREE.Color('#f3dfb2'), wetC = new THREE.Color('#c9a77a'), grassC = new THREE.Color('#7fb04a'), rockC = new THREE.Color('#9a9086'), jungleC = new THREE.Color('#5d8f3a');
+  const sandC = new THREE.Color('#f3dfb2'), wetC = new THREE.Color('#c9a77a'), grassC = new THREE.Color('#76b544'), rockC = new THREE.Color('#9a9086'), jungleC = new THREE.Color('#5d8f3a');
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i); const h = beachTerrain(x, z); pos.setY(i, h);
     const d = shoreZ(x) - z; const slope = Math.abs(beachTerrain(x + 1, z) - h) + Math.abs(beachTerrain(x, z + 1) - h);
     c.copy(sandC);
     if (d < 6) c.lerp(wetC, smoothstep(6, -2, d));
     const g2 = smoothstep(28, 48, d) * (0.6 + 0.4 * n2(x * 0.05, z * 0.05 + 4));
-    c.lerp(x < -105 ? jungleC : grassC, clamp(g2, 0, 1));
+    c.lerp(x < -105 ? jungleC : grassC, clamp(g2 * 1.5, 0, 1));
     if (h > 5) c.lerp(rockC, smoothstep(5, 9, h) * 0.8);
     if (slope > 1.2) c.lerp(rockC, 0.7);
     // paths
@@ -244,7 +244,21 @@ export function buildBeach(scene, quality, seed = 1) {
   info.arena = { minX: -100, maxX: 45, minZ: -2, maxZ: 60 };
   info.arenaCustomLarge = { minX: -110, maxX: 175, minZ: -110, maxZ: 60 };
   info.menuCam = { pos: [-30, 4.5, 62], look: [-20, 3.2, 52] };
+  info.greenAt = beachGreen;
   return info;
+}
+
+// Grass density for the nature layer: lush inland, sparse dune grass on the upper beach, none on paths or pads.
+export function beachGreen(x, z) {
+  const d = shoreZ(x) - z; if (d < 9) return null;
+  const path = Math.min(Math.abs(z + 40 + Math.sin(x * 0.03) * 6), Math.abs(x - 20 + Math.sin(z * 0.04) * 5));
+  if (d > 30 && path < 3.4) return null;
+  if (PADS.some(([x0, z0, x1, z1]) => x > x0 - 1 && x < x1 + 1 && z > z0 - 1 && z < z1 + 1)) return null;
+  const g = smoothstep(26, 46, d) * (0.6 + 0.4 * n2(x * 0.05, z * 0.05 + 4));
+  if (g > 0.32) return { dens: Math.min(1, g * 1.3), kind: x < -105 ? 'jungle' : 'lawn' };
+  const dune = n2(x * 0.09 + 7, z * 0.09);
+  if (d < 30 && dune > 0.25) return { dens: 0.18 * (dune - 0.25) / 0.75 + 0.05, kind: 'dune' };
+  return null;
 }
 
 function inAny(x, z, rects) { return rects.some(([a, b, c, d]) => x > a && x < c && z > b && z < d); }

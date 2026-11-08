@@ -48,7 +48,7 @@ class ParticleBuffer {
       this.vel[k] *= d; this.vel[k + 1] = this.vel[k + 1] * d - this.grav[i] * dt; this.vel[k + 2] *= d;
       this.pos[k] += this.vel[k] * dt; this.pos[k + 1] += this.vel[k + 1] * dt; this.pos[k + 2] += this.vel[k + 2] * dt;
       if (this.pos[k + 1] < this.floor[i]) { this.pos[k + 1] = this.floor[i]; this.vel[k + 1] *= -0.3; this.vel[k] *= 0.6; this.vel[k + 2] *= 0.6; }
-      this.size[i] += this.grow[i] * dt;
+      this.size[i] = Math.max(0.02, this.size[i] + this.grow[i] * dt);
       const t = this.life[i] / this.max[i]; this.alpha[i] = this.a0[i] * (this.kind[i] > 0.5 ? (t > 0.8 ? (1 - t) * 5 : 1) : (1 - t) * (t < 0.1 ? t * 10 : 1));
       i++;
     }
@@ -64,6 +64,7 @@ class ParticleBuffer {
 }
 
 const C = new THREE.Color();
+const _zero = new THREE.Matrix4().makeScale(0, 0, 0), _mx = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3();
 export class Effects {
   constructor(scene, quality) {
     this.scene = scene; this.q = quality; const mul = quality.particles;
@@ -86,6 +87,17 @@ export class Effects {
     this.waves = []; const wg = new THREE.RingGeometry(0.8, 1, 32); wg.rotateX(-Math.PI / 2);
     for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(wg, new THREE.MeshBasicMaterial({ color: '#fff3d0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.visible = false; scene.add(m); this.waves.push({ m, t: 1 }); }
     this.smokes = []; this.shake = 0;
+    // brass shell casings: real little meshes that tumble, bounce and settle
+    const cg = new THREE.CylinderGeometry(0.0065, 0.0065, 0.028, 8); cg.rotateZ(Math.PI / 2);
+    this.casingMesh = new THREE.InstancedMesh(cg, new THREE.MeshStandardMaterial({ color: '#d9a441', metalness: 0.85, roughness: 0.28 }), 48);
+    this.casingMesh.frustumCulled = false; this.casingMesh.count = 48; scene.add(this.casingMesh);
+    this.casings = Array.from({ length: 48 }, () => ({ life: 0, p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), floor: 0 }));
+    this.casingIdx = 0; for (let i = 0; i < 48; i++) this.casingMesh.setMatrixAt(i, _zero);
+    // scorch marks left by explosions
+    this.scorches = []; const sg = new THREE.CircleGeometry(1, 24); sg.rotateX(-Math.PI / 2);
+    const sm = new THREE.MeshBasicMaterial({ map: this.decalMat.map, transparent: true, opacity: 0.75, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6 });
+    for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(sg, sm); m.visible = false; scene.add(m); this.scorches.push(m); } this.scorchIdx = 0;
+    this.fires = [];
   }
   setScale(h, fov) { const s = h / (2 * Math.tan(THREE.MathUtils.degToRad(fov) / 2)); this.add.mat.uniforms.uScale.value = s; this.alpha.mat.uniforms.uScale.value = s; }
 
@@ -99,7 +111,11 @@ export class Effects {
     for (let i = 0; i < 5; i++) { const s = 2 + Math.random() * 4; this.add.spawn(x + dx * 0.1 * i, y + dy * 0.1 * i, z + dz * 0.1 * i, dx * s, dy * s, dz * s, 0.05, 0.35 - i * 0.04, 1, 0.75, 0.35); }
     this.alpha.spawn(x, y, z, dx * 0.8, dy * 0.8 + 0.4, dz * 0.8, 0.6, 0.3, 0.7, 0.7, 0.7, { grow: 1.2, alpha: 0.25, drag: 2 });
   }
-  casing(x, y, z, vx, vy, vz, floorY) { this.alpha.spawn(x, y, z, vx, vy, vz, 1.4, 0.05, 0.85, 0.62, 0.25, { solid: true, g: 9.8, floor: floorY, drag: 0.5 }); }
+  casing(x, y, z, vx, vy, vz, floorY) {
+    const c = this.casings[this.casingIdx++ % this.casings.length];
+    c.life = 2.6; c.p.set(x, y, z); c.v.set(vx + (Math.random() - 0.5) * 0.6, vy + Math.random() * 0.8, vz + (Math.random() - 0.5) * 0.6); c.floor = floorY;
+    c.q.setFromEuler(new THREE.Euler(Math.random() * 6, Math.random() * 6, 0)); c.w.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
+  }
 
   impact(x, y, z, nx, ny, nz, kind = 'concrete', color = null) {
     const m = this.q.particles;
@@ -107,6 +123,8 @@ export class Effects {
     else if (kind === 'water') { for (let i = 0; i < 14 * m; i++) this.alpha.spawn(x, y, z, (Math.random() - 0.5) * 2, 3 + Math.random() * 4, (Math.random() - 0.5) * 2, 0.7, 0.18, 0.9, 0.95, 1, { g: 12, alpha: 0.8 }); return; }
     else if (kind === 'glass') { for (let i = 0; i < 20 * m; i++) this.alpha.spawn(x, y, z, (Math.random() - 0.5) * 5, Math.random() * 3, (Math.random() - 0.5) * 5, 1.2, 0.07, 0.75, 0.9, 1, { solid: true, g: 9.8, floor: y - 3 }); return; }
     const c = color ? C.set(color) : C.setRGB(0.75, 0.7, 0.62);
+    this.add.spawn(x + nx * 0.03, y + ny * 0.03, z + nz * 0.03, 0, 0, 0, 0.06, 0.22, 1, 0.85, 0.55); // flash at the hit point
+    if (kind !== 'grass' && kind !== 'sand' && kind !== 'flesh') for (let i = 0; i < 3 * m; i++) this.add.spawn(x, y, z, nx * 4 + (Math.random() - 0.5) * 5, ny * 4 + Math.random() * 3, nz * 4 + (Math.random() - 0.5) * 5, 0.18 + Math.random() * 0.15, 0.045, 1, 0.78, 0.4, { g: 14 });
     for (let i = 0; i < 6 * m; i++) this.alpha.spawn(x, y, z, nx * 1.5 + (Math.random() - 0.5) * 1.5, ny * 1.5 + Math.random() * 1.2, nz * 1.5 + (Math.random() - 0.5) * 1.5, 0.6 + Math.random() * 0.4, 0.18, c.r, c.g, c.b, { grow: 0.6, drag: 3, alpha: 0.55, g: 1 });
     for (let i = 0; i < 3 * m; i++) this.alpha.spawn(x, y, z, nx * 3 + (Math.random() - 0.5) * 3, ny * 3 + Math.random() * 3, nz * 3 + (Math.random() - 0.5) * 3, 0.8, 0.06, c.r * 0.7, c.g * 0.7, c.b * 0.7, { solid: true, g: 12, floor: y - 2 });
     this.decal(x, y, z, nx, ny, nz);
@@ -126,6 +144,9 @@ export class Effects {
     for (let i = 0; i < 20 * m; i++) this.add.spawn(x, y + 0.5, z, (Math.random() - 0.5) * 22, Math.random() * 16, (Math.random() - 0.5) * 22, 1 + Math.random(), 0.12, 1, 0.7, 0.3, { g: 15 });
     const L = this.lights.find((o) => o.t >= o.dur) || this.lights[0]; Object.assign(L, { t: 0, dur: 0.45, i0: 60 }); L.l.position.set(x, y + 1.5, z); L.l.visible = true; L.l.distance = radius * 4;
     const w = this.waves.find((o) => o.t >= 1) || this.waves[0]; w.t = 0; w.r = radius * 1.6; w.m.position.set(x, y + 0.2, z); w.m.visible = true;
+    for (let i = 0; i < 16 * m; i++) { const g = 0.25 + Math.random() * 0.2; this.alpha.spawn(x, y + 0.4, z, (Math.random() - 0.5) * 12, 4 + Math.random() * 9, (Math.random() - 0.5) * 12, 1.6, 0.12 + Math.random() * 0.14, g * 1.3, g, g * 0.8, { solid: true, g: 16, floor: y, drag: 0.3 }); } // clay debris
+    const sc = this.scorches[this.scorchIdx++ % this.scorches.length]; sc.position.set(x, y + 0.03, z); sc.scale.setScalar(radius * 0.55); sc.rotation.y = Math.random() * 6; sc.visible = true;
+    this.fires.push({ x, y, z, r: radius * 0.35, t: 0, dur: 2.6 + Math.random() });
   }
   smokeCloud(x, y, z, world, dur = 13) {
     const s = { x, y: y + 1.5, z, r: 0.5, until: performance.now() / 1000 + dur, t: 0, dur }; this.smokes.push(s); world.smokes.push(s);
@@ -136,6 +157,23 @@ export class Effects {
 
   update(dt) {
     this.add.update(dt); this.alpha.update(dt);
+    let ci = 0;
+    for (const c of this.casings) {
+      if (c.life > 0) {
+        c.life -= dt; c.v.y -= 9.8 * dt; c.p.addScaledVector(c.v, dt);
+        if (c.p.y < c.floor + 0.007) { c.p.y = c.floor + 0.007; if (Math.abs(c.v.y) > 0.6) { c.v.y *= -0.35; c.v.x *= 0.5; c.v.z *= 0.5; c.w.multiplyScalar(0.5); } else { c.v.set(0, 0, 0); c.w.multiplyScalar(0.9); } }
+        _e.set(c.w.x * dt, c.w.y * dt, c.w.z * dt); _q.setFromEuler(_e); c.q.multiply(_q);
+        _s.setScalar(c.life < 0.4 ? c.life / 0.4 : 1); _mx.compose(c.p, c.q, _s); this.casingMesh.setMatrixAt(ci, _mx);
+      } else this.casingMesh.setMatrixAt(ci, _zero);
+      ci++;
+    }
+    this.casingMesh.instanceMatrix.needsUpdate = true;
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      const f = this.fires[i]; f.t += dt; const k = 1 - f.t / f.dur;
+      if (Math.random() < dt * 40 * this.q.particles * k) { const a = Math.random() * 6.28, d = Math.random() * f.r; this.add.spawn(f.x + Math.cos(a) * d, f.y + 0.1, f.z + Math.sin(a) * d, (Math.random() - 0.5) * 0.4, 1.5 + Math.random() * 1.5, (Math.random() - 0.5) * 0.4, 0.5 + Math.random() * 0.4, 0.35 + Math.random() * 0.3, 1, 0.45 + Math.random() * 0.3, 0.1, { grow: -0.4, drag: 1 }); }
+      if (Math.random() < dt * 12 * this.q.particles) { const g = 0.12 + Math.random() * 0.12; this.alpha.spawn(f.x + (Math.random() - 0.5) * f.r, f.y + 0.8, f.z + (Math.random() - 0.5) * f.r, (Math.random() - 0.5) * 0.5, 2 + Math.random(), (Math.random() - 0.5) * 0.5, 3.5, 1 + Math.random(), g, g, g, { grow: 1.3, alpha: 0.5, drag: 0.4, g: -0.3 }); }
+      if (f.t >= f.dur) this.fires.splice(i, 1);
+    }
     for (const t of this.tracers) if (t.t < t.dur) {
       t.t += dt; const k = Math.min(1, t.t / t.dur); const head = k * t.len, L = Math.min(5, t.len * 0.35);
       const dx = (t.ex - t.sx) / t.len, dy = (t.ey - t.sy) / t.len, dz = (t.ez - t.sz) / t.len; const mid = Math.max(L / 2, head - L / 2);
@@ -151,5 +189,5 @@ export class Effects {
       if (s.until < now) this.smokes.splice(i, 1);
     }
   }
-  clear() { this.add.clear(); this.alpha.clear(); this.smokes.length = 0; for (const d of this.decals) d.visible = false; for (const t of this.tracers) { t.t = t.dur = 0; t.m.visible = false; } }
+  clear() { this.fires.length = 0; for (const c of this.casings) c.life = 0; for (const s of this.scorches) s.visible = false; this.add.clear(); this.alpha.clear(); this.smokes.length = 0; for (const d of this.decals) d.visible = false; for (const t of this.tracers) { t.t = t.dur = 0; t.m.visible = false; } }
 }

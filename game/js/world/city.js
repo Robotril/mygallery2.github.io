@@ -131,6 +131,23 @@ export function buildCity(scene, quality, seed = 1) {
   info.arenaCustomLarge = { minX: -170, maxX: 170, minZ: -170, maxZ: 170 };
   info.menuCam = { pos: [12, 3.0, 22], look: [0, 2.5, 8] };
   info.ambientRing = 182;
+  // street planters along the sidewalks, skipping crossings
+  info.planterSpots = [];
+  for (const c of ROADS) for (let t = -158; t <= 158; t += 13) {
+    if (ROADS.some((q) => Math.abs(t - q) < RW + 7)) continue;
+    for (const s of [-1, 1]) { info.planterSpots.push([c + s * (RW + 1.4), t, 0]); info.planterSpots.push([t, c + s * (RW + 1.4), Math.PI / 2]); }
+  }
+  info.sidewalkY = SW;
+  // where grass grows: inside parks, off the paths, away from the pond, gazebo and playground
+  info.greenAt = (x, z) => {
+    for (const g of info.greens || []) {
+      if (x < g.x0 || x > g.x1 || z < g.z0 || z > g.z1) continue;
+      if (Math.abs(x - g.paths[0]) < 2.2 || Math.abs(z - g.paths[1]) < 2.2) return null;
+      if (g.holes.some(([hx, hz, hr]) => Math.hypot(x - hx, z - hz) < hr)) return null;
+      return { dens: 1, y: g.y, kind: 'lawn' };
+    }
+    return null;
+  };
   return info;
 }
 
@@ -302,6 +319,7 @@ function park(B, L, r, info, loot, wm) {
   B.geom(P.G.cyl, P.mat(gx, Y + 0.3, gz, 0, 0, 0, 4, 0.6, 4), 'wood', '#c99a6a'); B.collider(gx - 3.5, Y, gz - 3.5, gx + 3.5, Y + 0.6, gz + 3.5);
   for (let q = 0; q < 6; q++) { const a = q / 6 * Math.PI * 2; B.box(gx + Math.cos(a) * 3.6 - 0.12, Y + 0.6, gz + Math.sin(a) * 3.6 - 0.12, gx + Math.cos(a) * 3.6 + 0.12, Y + 3.6, gz + Math.sin(a) * 3.6 + 0.12, 'wood', '#f2efe6', { flags: F_SOLID | F_BULLET }); }
   B.geom(P.G.cone, P.mat(gx, Y + 4.4, gz, 0, 0, 0, 4.6, 1.8, 4.6), 'paint', '#3f8a5a');
+  (info.greens ||= []).push({ x0: L.x0 - 1, z0: L.z0 - 1, x1: L.x1 + 1, z1: L.z1 + 1, y: Y + 0.085, paths: [mx, mz], holes: [[px, pz, 7.2], [gx, gz, 4.4], [mx - (mx - L.x0) / 2 - 2, mz + (L.z1 - mz) / 2, 6]] });
   loot(gx, Y + 0.6, gz, 2);
   // playground
   const kx = mx - (mx - L.x0) / 2, kz = mz + (L.z1 - mz) / 2;

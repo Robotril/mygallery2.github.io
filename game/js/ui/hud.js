@@ -137,7 +137,7 @@ export class HUD {
     this.q('.clickplay').classList.toggle('hidden', !!this.H.locked?.() || !L.alive || m.ended);
     // vitals
     E.name.textContent = L.name;
-    E.hp.querySelector('i').style.width = clamp(L.hp, 0, 100) + '%'; E.hp.querySelector('span').textContent = Math.ceil(L.hp);
+    E.hp.querySelector('i').style.width = clamp(L.hp, 0, 100) + '%'; E.hp.querySelector('span').textContent = Math.ceil(L.hp); E.hp.classList.toggle('low', L.alive && L.hp < 30);
     E.armor.style.display = L.armor > 0 || m.mode.usePool ? '' : 'none'; E.armor.querySelector('i').style.width = clamp(L.armor, 0, 100) + '%'; E.armor.querySelector('span').textContent = Math.ceil(L.armor);
     E.inv.innerHTML = m.mode.usePool ? Object.entries(L.heals).map(([k, n]) => `<span class="${n ? '' : 'dim'}" title="${k === 'cell' ? 'Shield cells' : k === 'medkit' ? 'Medkits' : 'Bandages'}">${icon(k === 'cell' ? 'shield' : k === 'medkit' ? 'heal' : 'bandage')} ${n}</span>`).join('') + Object.entries(L.ammo).filter(([, n]) => n > 0).map(([k, n]) => `<span class="am am-${k}">${n}</span>`).join('') : '';
     // weapon
@@ -176,7 +176,7 @@ export class HUD {
     const m = this.m; const id = m.mode.id; let html = '';
     if (id === 'br') {
       const z = st.zone; const out = z && Math.hypot(L.pos.x - z.x, L.pos.z - z.z) > z.r;
-      html = `<div class="mb-row"><span class="mb-big">${st.alive ?? '-'}</span><span>left</span><span class="mb-big">${L.stats.kills}</span><span>knockouts</span></div>` +
+      html = `<div class="mb-row"><span class="mb-ic">${icon('users')}</span><span class="mb-big">${st.alive ?? '-'}</span><span>left</span><span class="mb-ic">${icon('skull')}</span><span class="mb-big">${L.stats.kills}</span><span>knockouts</span></div>` +
         (st.phase >= 0 ? `<div class="mb-zone ${st.zoneShrinking ? 'shrink' : ''} ${out ? 'out' : ''}">${st.zoneShrinking ? 'Circle closing' : 'Circle shrinks in'} ${formatTime(st.zoneTimer || 0)}${out ? '. Get inside!' : ''}</div>` : `<div class="mb-zone">${L.dropping?.inPlane ? 'Choose your drop: press JUMP' : 'Storm forming…'}</div>`);
     } else if (id === 'gg') {
       const total = GUN_GAME_ORDER.length; const lvl = Math.min(L.ggLevel, total - 1);

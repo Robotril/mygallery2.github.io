@@ -159,17 +159,28 @@ class App {
   }
   finishToResults(res) {
     const m = this.match; if (!m) return; const L = m.local; const st = L.stats;
-    if (!res) { const alive = m.combatants.filter((c) => c.alive).length; L.place = L.place || (m.mode.id === 'br' ? alive + (L.alive ? 0 : 1) : 0); res = { mode: m.mode.id, won: false, winnerName: '—', reason: 'Left the match', scoreboard: m.mode.scoreboard() }; }
-    const br = res.mode === 'br'; const mins = (performance.now() - this.matchStart) / 60000;
+    const mins = (performance.now() - this.matchStart) / 60000;
+    const lookOf = (c) => c && (c.look || null);
+    if (!res) { // left before the end: nothing is recorded, nobody is declared the winner
+      const p = getProfile(); const lv = levelInfo(p.xp).level;
+      this.lastResults = { left: true, res: { mode: m.mode.id, won: false, winnerName: null, reason: 'You left before the match ended', scoreboard: m.mode.scoreboard() }, summary: { xp: 0, challengeXp: 0, challengesDone: [], achievements: [], levelBefore: lv, levelAfter: lv }, xpLines: [], total: m.combatants.length,
+        me: { id: L.id, kills: st.kills, deaths: st.deaths, assists: st.assists, headshots: st.headshots, damage: st.damage, shots: st.shots, hits: st.hits, place: 0, score: st.score, time: mins * 60 }, myLook: lookOf(L) };
+      this.lastPlayed = { settings: { ...m.settings, roster: undefined, loadout: undefined }, role: m.role };
+      this.teardownMatch(); this.menu.stack = []; this.menu.show('results', false); return;
+    }
+    const br = res.mode === 'br';
     if (res.mode === 'training') return this.finishTraining(res, L, mins);
+    if (br && res.won) L.place = 1;
     const xpLines = [['Match completed', 200], ['Eliminations', st.kills * 100], ['Headshots', st.headshots * 25], ['Assists', st.assists * 25]];
     if (res.won) xpLines.push([br ? 'Last one standing' : 'Win', br ? 1500 : 1000]);
     if (br && L.place) xpLines.push([`Placement #${L.place}`, Math.max(0, 51 - L.place) * 15]);
     xpLines.push(['Time played', Math.round(mins * 40)]);
     const lines = xpLines.filter((l) => l[1] > 0); const xp = lines.reduce((a, l) => a + l[1], 0);
-    const summary = recordMatch({ mode: res.mode === 'ffa' || res.mode === 'tdm' ? 'custom' : res.mode, map: m.map.id, won: res.won, place: br ? (L.place || 1) : 0, kills: st.kills, deaths: st.deaths, headshots: st.headshots, damage: st.damage, shots: st.shots, hits: st.hits, time: Math.round(mins * 60), xp, crates: st.crates, classKills: st.classKills, explosiveKills: st.explosiveKills, weaponXp: st.weaponXp });
+    const summary = recordMatch({ mode: res.mode === 'ffa' || res.mode === 'tdm' ? 'custom' : res.mode, map: m.map.id, won: res.won, place: br ? (L.place || m.combatants.length) : 0, kills: st.kills, deaths: st.deaths, headshots: st.headshots, damage: st.damage, shots: st.shots, hits: st.hits, time: Math.round(mins * 60), xp, crates: st.crates, classKills: st.classKills, explosiveKills: st.explosiveKills, weaponXp: st.weaponXp });
     if (summary.levelAfter > summary.levelBefore) audio.levelUp();
-    this.lastResults = { res, summary, xpLines: lines, me: { id: L.id, kills: st.kills, deaths: st.deaths, assists: st.assists, headshots: st.headshots, damage: st.damage, shots: st.shots, hits: st.hits, place: L.place, score: st.score, time: mins * 60 } };
+    const winner = res.winnerId != null ? m.byId.get(res.winnerId) : null;
+    this.lastResults = { res, summary, xpLines: lines, total: m.combatants.length, winnerLook: lookOf(winner), myLook: lookOf(L),
+      me: { id: L.id, kills: st.kills, deaths: st.deaths, assists: st.assists, headshots: st.headshots, damage: st.damage, shots: st.shots, hits: st.hits, place: L.place, score: st.score, time: mins * 60, team: L.team } };
     this.lastPlayed = { settings: { ...m.settings, roster: undefined, loadout: undefined }, role: m.role };
     this.teardownMatch();
     this.menu.stack = []; this.menu.show('results', false);

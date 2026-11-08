@@ -8,6 +8,8 @@ import { audio } from '../engine/audio.js';
 import { openLayoutEditor } from '../engine/input.js';
 import { formatTime, isValidRoomCode } from '../core/util.js';
 import { icon } from './icons.js';
+import * as THREE from 'three';
+import { ClayFigure } from '../entities/clay.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const MAP_ART = {
@@ -25,7 +27,7 @@ export class Menu {
     if (push && this.screen && this.screen !== name) this.stack.push(this.screen);
     this.screen = name; this.root.classList.remove('hidden'); const fn = this['s_' + name];
     this.root.innerHTML = `<div class="menu screen-${name}">${this.topbar()}<div class="m-body">${fn.call(this)}</div></div>`;
-    this.bind(); this.app.showcaseMode(name === 'characters' ? 'character' : name === 'weapons' ? 'weapons' : name === 'loadouts' ? 'loadout' : 'main');
+    this.bind(); if (name === 'results') this.resultsShowcase(); else { if (this.resultsLookShown) { this.resultsLookShown = false; this.app.previewCharacter(this.P.character, this.P.custom[this.P.character]); } this.app.showcaseMode(name === 'characters' ? 'character' : name === 'weapons' ? 'weapons' : name === 'loadouts' ? 'loadout' : 'main'); }
     if (name === 'characters') this.app.previewCharacter(this.charSel, this.P.custom[this.charSel] || {});
     else this.app.previewCharacter(this.P.character, this.P.custom[this.P.character] || {});
     if (name === 'weapons') this.app.previewWeapon(this.armory, this.buildFor(this.armory));
@@ -209,17 +211,64 @@ export class Menu {
     if (tab === 'data') body = `<p class="note">Progress, loadouts and settings are saved automatically on this device.</p><div class="row"><button class="btn danger" data-act="reset-all">Reset all progress</button></div>`;
     return `<h2>Settings</h2><div class="tabs">${['graphics', 'controls', 'touch', 'audio', 'data'].map((t) => `<button class="btn ${tab === t ? 'on' : ''}" data-act="set-tab" data-v="${t}">${t}</button>`).join('')}</div><div class="panel form settings">${body}</div>`;
   }
+  // Placement for every row of the final leaderboard. BR uses the place each player finished in;
+  // other modes rank by the mode's own ordering. Rows still alive after leaving early have no placement yet.
+  resultsRanks(r) {
+    const res = r.res; const br = res.mode === 'br'; const sb = res.scoreboard || [];
+    return sb.map((row, i) => (r.left ? (br ? (row.alive ? null : row.place || null) : null) : br ? (row.place || (row.alive ? 1 : null)) : i + 1));
+  }
+  resultsTier(r) {
+    if (r.res.mode === 'training') return { tier: 'training', rank: 0 };
+    if (r.left) return { tier: 'left', rank: 0 };
+    const res = r.res, me = r.me; const total = r.total || res.scoreboard.length;
+    if (res.mode === 'tdm') return { tier: res.won ? 'first' : 'middle', rank: res.won ? 1 : 2, total: 2, team: true };
+    let rank = res.mode === 'br' ? (me.place || total) : res.scoreboard.findIndex((s) => s.id === me.id) + 1;
+    if (res.won) rank = 1; if (rank <= 0) rank = total;
+    return { tier: rank === 1 ? 'first' : rank <= 3 ? 'top3' : rank >= total ? 'last' : 'middle', rank, total };
+  }
+  resultsShowcase() {
+    const r = this.app.lastResults; if (!r) return this.app.showcaseMode('main'); const t = this.resultsTier(r);
+    const look = t.tier === 'first' || t.tier === 'top3' || t.tier === 'training' ? r.myLook : (r.winnerLook || r.myLook);
+    const pose = t.tier === 'first' || t.tier === 'training' ? 'victory' : t.tier === 'top3' ? 'cheer' : r.winnerLook && !r.left ? 'victory' : 'sad';
+    this.app.showcase?.setResults(look, pose); this.resultsLookShown = true;
+  }
   s_results() {
     const r = this.app.lastResults; if (!r) return '';
-    const res = r.res, sum = r.summary, me = r.me; const br = res.mode === 'br';
-    return `<div class="results ${res.won ? 'win' : 'loss'}"><div class="res-banner">${res.mode === 'training' ? (res.won ? 'Training complete!' : 'Training over') : res.won ? (br ? 'Last one standing!' : 'You win!') : br ? `You placed #${me.place || '?'}` : 'Good try!'}</div><div class="res-sub">${res.mode === 'training' ? 'You are ready to play.' : `${esc(res.reason || '')} · Winner: ${esc(res.winnerName)}`}</div>
-      <div class="cols"><div class="panel"><div class="stats">${[['Eliminations', me.kills], ['Deaths', me.deaths], ['Assists', me.assists], ['Headshots', me.headshots], ['Damage', Math.round(me.damage)], ['Accuracy', (me.hits / Math.max(1, me.shots) * 100).toFixed(0) + '%'], br ? ['Placement', '#' + (me.place || '?')] : ['Score', me.score], ['Time', formatTime(me.time)]].map(([k, v]) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
-        <h3>+${sum.xp} XP</h3>${r.xpLines.map((l) => `<div class="xpl"><span>${esc(l[0])}</span><b>+${l[1]}</b></div>`).join('')}
+    const res = r.res, sum = r.summary, me = r.me; const br = res.mode === 'br'; const t = this.resultsTier(r);
+    const N = t.total || r.total || res.scoreboard.length;
+    const title = { training: res.won ? 'Training complete!' : 'Training over', left: 'You left the match', first: br ? 'Last one standing!' : t.team ? 'Your team wins!' : 'Victory!', top3: 'Top 3 finish!', middle: t.team ? 'Your team lost' : 'Good fight!', last: 'Tough match' }[t.tier];
+    const sub = t.tier === 'training' ? 'You are ready to play.'
+      : t.tier === 'left' ? 'This match was still going when you left, so it was not counted. No winner yet.'
+      : t.team ? `${esc(res.reason || '')}`
+      : `You finished #${t.rank} of ${N}. ${t.tier === 'first' ? 'Nobody did it better.' : t.tier === 'last' ? 'Shake it off. The next drop is yours.' : esc(res.reason || '')}`;
+    const medal = ['first', 'top3', 'middle', 'last'].includes(t.tier) && !t.team ? `<div class="medal m-${t.rank === 1 ? 'gold' : t.rank === 2 ? 'silver' : t.rank === 3 ? 'bronze' : 'clay'}"><small>place</small><b>#${t.rank}</b><small>of ${N}</small></div>` : '';
+    const letters = [...title].map((ch, i) => `<span style="--i:${i}">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('');
+    const acc = me.shots ? Math.round(me.hits / me.shots * 100) + '%' : '-';
+    const stat = (ic, k, v) => `<div class="rs"><span class="rs-ic">${icon(ic)}</span><small>${k}</small><b>${v}</b></div>`;
+    const stats = [stat('skull', 'Knockouts', me.kills), stat('heal', 'Deaths', me.deaths), stat('users', 'Assists', me.assists), stat('fire', 'Damage', Math.round(me.damage)), stat('aim', 'Accuracy', acc), stat('star', 'Headshots', me.headshots), stat('pause', 'Time', formatTime(me.time))].join('');
+    // XP bar: from where you were to where you are now
+    const after = levelInfo(this.P.xp), before = levelInfo(Math.max(0, this.P.xp - sum.xp)); const fromPct = sum.levelAfter > sum.levelBefore ? 0 : before.pct;
+    const xpBlock = t.tier === 'left' ? `<p class="note">Matches you leave give no XP and don't change your stats.</p>`
+      : `<div class="xp-head"><b>+${sum.xp} XP</b><span>Level ${after.level}</span></div><div class="xpbar big res-xp" style="--from:${(fromPct * 100).toFixed(1)}%;--to:${(after.pct * 100).toFixed(1)}%"><i></i></div>
+        <div class="xp-lines">${r.xpLines.map((l) => `<div class="xpl"><span>${esc(l[0])}</span><b>+${l[1]}</b></div>`).join('')}</div>
         ${sum.levelAfter > sum.levelBefore ? `<div class="lvlup">${icon('star')} Level up! You reached level ${sum.levelAfter}</div>` : ''}
         ${sum.challengesDone.map((c) => `<div class="xpl ok"><span>${icon('check')} ${esc(c.text)}</span><b>+${c.xp}</b></div>`).join('')}
-        ${sum.achievements.map((a) => `<div class="xpl ok"><span>${icon('trophy')} ${esc(a.name)}</span></div>`).join('')}</div>
-      <div class="panel"><h3>Scoreboard</h3><table class="sb">${res.scoreboard.slice(0, 12).map((s, i) => `<tr class="${s.id === me.id ? 'me' : ''}"><td>${br ? (s.alive ? '#1' : '#' + s.place) : i + 1}</td><td>${esc(s.name)}${s.bot ? ' <i class="bot">BOT</i>' : ''}</td><td>${s.kills} K</td><td>${s.deaths} D</td></tr>`).join('')}</table></div></div>
-      <div class="row center"><button class="btn primary big" data-act="again">Play Again</button><button class="btn big" data-act="to-main">Main Menu</button></div></div>`;
+        ${sum.achievements.map((a) => `<div class="xpl ok"><span>${icon('trophy')} ${esc(a.name)}</span><b>New</b></div>`).join('')}`;
+    const ranks = this.resultsRanks(r);
+    const rows = res.scoreboard.slice(0, 12).map((s, i) => { const rk = ranks[i]; const cls = rk === 1 ? 'r1' : rk === 2 ? 'r2' : rk === 3 ? 'r3' : '';
+      return `<tr class="${s.id === me.id ? 'me' : ''} ${cls}"><td><span class="rk">${rk ? rk : r.left && s.alive ? icon('heal') : '-'}</span></td><td>${esc(s.name)}${s.bot ? ' <i class="bot">BOT</i>' : ''}</td><td>${s.kills}</td><td>${s.deaths}</td><td>${s.assists ?? 0}</td></tr>`; }).join('');
+    const myRow = res.scoreboard.findIndex((s) => s.id === me.id);
+    const extra = myRow >= 12 ? `<tr class="me"><td><span class="rk">${ranks[myRow] ?? '-'}</span></td><td>${esc(res.scoreboard[myRow].name)}</td><td>${me.kills}</td><td>${me.deaths}</td><td>${me.assists}</td></tr>` : '';
+    const winnerCard = t.tier !== 'left' && t.tier !== 'training' && !t.team && res.winnerName && t.tier !== 'first' ? `<div class="winner-card">${icon('trophy')}<span>Winner</span><b>${esc(res.winnerName)}</b></div>` : '';
+    return `<div class="results t-${t.tier}">
+      <div class="res-head">${medal}<div><div class="res-banner">${letters}</div><div class="res-sub">${sub}</div>${winnerCard}</div></div>
+      <div class="res-grid">
+        <div class="panel res-me"><h3>${t.tier === 'left' ? 'Before you left' : 'Your match'}</h3><div class="rstats">${stats}</div>${xpBlock}</div>
+        <div class="panel res-board"><h3>${t.tier === 'left' ? 'Standings when you left' : 'Final standings'}</h3>
+          <table class="sb lb"><tr><th>#</th><th>Player</th><th>K</th><th>D</th><th>A</th></tr>${rows}${extra}</table>
+          ${t.tier === 'left' && br ? `<p class="note">${icon('heal')} still in the match</p>` : ''}</div>
+      </div>
+      <div class="row center res-actions"><button class="btn primary big" data-act="again">${icon('play')} Play again</button><button class="btn big" data-act="to-main">Main menu</button></div></div>`;
   }
 
   s_howto() {
@@ -304,14 +353,53 @@ export class Menu {
   flash(el, text) { const t = document.createElement('div'); t.className = 'mini-toast'; t.textContent = text; el.append(t); setTimeout(() => t.remove(), 1500); }
 
   // ---------------- overlays ----------------
-  pause(onResume, onLeave, onSettings) {
+  pause(onResume, onLeave) {
     const d = document.createElement('div'); d.className = 'pause';
-    d.innerHTML = `<div class="panel"><h2>Paused</h2><button class="btn primary big" data-a="resume">Resume</button><button class="btn" data-a="settings">Settings</button><button class="btn" data-a="controls">Controls</button><button class="btn danger" data-a="leave">Leave Match</button><div class="pause-extra"></div></div>`;
-    d.querySelector('[data-a=resume]').onclick = () => { audio.click(); d.remove(); onResume(); };
-    d.querySelector('[data-a=leave]').onclick = () => { audio.click(); d.remove(); onLeave(); };
-    d.querySelector('[data-a=controls]').onclick = () => { this.setTab = 'controls'; d.querySelector('.pause-extra').innerHTML = this.s_settings(); this.bindIn(d); };
-    d.querySelector('[data-a=settings]').onclick = () => { this.setTab = 'audio'; d.querySelector('.pause-extra').innerHTML = this.s_settings(); this.bindIn(d); };
-    document.body.append(d); return d;
+    const m = this.app.match; const L = m?.local; const mode = m?.mode?.name || 'Match'; const map = m?.map?.name || '';
+    const hs = m?.mode?.hudState?.() || {}; const time = m ? formatTime(hs.time ?? m.time ?? 0) : '';
+    d.innerHTML = `<div class="pause-card">
+      <div class="pause-main panel">
+        <div class="pause-title"><h2>Paused</h2><div class="pause-chips"><span class="chip">${icon('pad')} ${esc(mode)}</span>${map ? `<span class="chip">${icon('map')} ${esc(map)}</span>` : ''}</div></div>
+        ${L ? `<div class="pause-stats"><div><b>${L.stats.kills}</b><small>knockouts</small></div><div><b>${L.stats.deaths}</b><small>deaths</small></div><div><b>${Math.round(L.stats.damage)}</b><small>damage</small></div>${time ? `<div><b>${time}</b><small>${m.mode?.id === 'br' ? 'played' : 'clock'}</small></div>` : ''}</div>` : ''}
+        <div class="pause-btns">
+          <button class="pbtn c-tangerine" data-a="resume" style="--i:0">${icon('play')}<span>Resume<small>Back to the fight (Esc)</small></span></button>
+          <button class="pbtn" data-a="settings" style="--i:1">${icon('gear')}<span>Settings<small>Sound, graphics, text size</small></span></button>
+          <button class="pbtn" data-a="controls" style="--i:2">${icon('computer')}<span>Controls<small>Sensitivity, aim assist, keys</small></span></button>
+          <button class="pbtn c-tomato" data-a="leave" style="--i:3">${icon('back')}<span>Leave match<small>It won't count as a win or a loss</small></span></button>
+        </div>
+        <div class="pause-extra"></div>
+      </div>
+      <div class="pause-hero"><div class="pause-fig" aria-hidden="true"></div><div class="pause-name">${esc(L?.name || this.P.name)}</div></div>
+    </div>`;
+    let stop = false; const close = () => { stop = true; removeEventListener('keydown', onKey); fig?.dispose?.(); };
+    const onKey = (e) => { if (e.code === 'Escape' && !d.querySelector('.pause-extra').innerHTML) { e.preventDefault(); audio.click(); close(); d.remove(); onResume(); } };
+    setTimeout(() => addEventListener('keydown', onKey), 200);
+    d.querySelector('[data-a=resume]').onclick = () => { audio.click(); close(); d.remove(); onResume(); };
+    d.querySelector('[data-a=leave]').onclick = () => { audio.click(); close(); d.remove(); onLeave(); };
+    const openTab = (tab) => { this.setTab = tab; const x = d.querySelector('.pause-extra'); x.innerHTML = `<div class="pe-head"><b>${tab === 'controls' ? 'Controls' : 'Settings'}</b><button class="btn small" data-a="pe-close">${icon('close')} Close</button></div>` + this.s_settings(); this.bindIn(d); x.querySelector('[data-a=pe-close]').onclick = () => { x.innerHTML = ''; d.classList.remove('has-extra'); }; d.classList.add('has-extra'); };
+    d.querySelector('[data-a=controls]').onclick = () => { audio.click(); openTab('controls'); };
+    d.querySelector('[data-a=settings]').onclick = () => { audio.click(); openTab('audio'); };
+    document.body.append(d);
+    const fig = this.pauseFigure(d.querySelector('.pause-fig'), L?.look || resolveLook(this.P.character, this.P.custom[this.P.character]), () => stop);
+    return d;
+  }
+  // Your character, idling and turning, drawn by the game's own renderer into the box beside the pause menu.
+  pauseFigure(el, look, stopped) {
+    const gfx = this.app.gfx; if (!el || !gfx) return null;
+    const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight('#dfefff', '#8a6a4a', 1.6)); const sun = new THREE.DirectionalLight('#fff2dc', 2.4); sun.position.set(2, 4, -3); scene.add(sun);
+    const rim = new THREE.DirectionalLight('#ff9a52', 1.4); rim.position.set(-3, 2, 3); scene.add(rim);
+    const cam = new THREE.PerspectiveCamera(30, 0.75, 0.1, 50); cam.position.set(0, 1.25, -5.4); cam.lookAt(0, 1.0, 0);
+    const f = new ClayFigure(look); f.setWeapon(this.app.match?.local?.weapon?.id || 'sentinel', {}); scene.add(f.root);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.12, 40), new THREE.MeshStandardMaterial({ color: '#ff8a3d', roughness: 0.6 })); disc.position.y = -0.06; scene.add(disc);
+    gfx.overlay = { el, scene, camera: cam };
+    let last = performance.now(); const t0 = last;
+    const tick = (now) => {
+      if (stopped() || !el.isConnected) { if (gfx.overlay?.scene === scene) gfx.overlay = null; return; }
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; const t = (now - t0) / 1000;
+      f.root.rotation.y = Math.sin(t * 0.5) * 0.6; f.animate(dt, { speed: 0, crouch: 0, pitch: Math.sin(t * 0.8) * 0.06, emote: false }); f.hips.position.y = 0.92 + Math.sin(t * 1.6) * 0.012;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick); return { dispose: () => { if (gfx.overlay?.scene === scene) gfx.overlay = null; } };
   }
   bindIn(d) {
     d.querySelectorAll('input[data-set]').forEach((i) => i.addEventListener('input', () => { const s = this.P.settings; const k = i.dataset.set; s[k] = i.type === 'checkbox' ? i.checked : i.type === 'range' ? Number(i.value) : i.value; saveProfile(); const out = d.querySelector(`[data-out="${k}"]`); if (out) out.textContent = s[k]; audio.setVolumes(s); }));
