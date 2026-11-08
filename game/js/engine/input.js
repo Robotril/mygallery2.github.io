@@ -1,30 +1,31 @@
 // Unified input: keyboard/mouse (pointer lock) + touchscreen controls with editable layout.
 import { getProfile, saveProfile } from '../core/save.js';
+import { icon } from '../ui/icons.js';
 
 const KEYMAP = {
-  KeyW: 'fwd', ArrowUp: 'fwd', KeyS: 'back', ArrowDown: 'back', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
+  KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ArrowUp: 'lookUp', ArrowDown: 'lookDown', ArrowLeft: 'lookLeft', ArrowRight: 'lookRight', KeyZ: 'aim',
   Space: 'jump', ShiftLeft: 'sprint', ShiftRight: 'sprint', ControlLeft: 'crouch', ControlRight: 'crouch', KeyC: 'crouch',
-  KeyR: 'reload', KeyE: 'interact', KeyF: 'interact', Tab: 'scores', Escape: 'pause', KeyP: 'pause', Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyQ: 'tactical', KeyG: 'grenade',
+  KeyR: 'reload', KeyE: 'interact', KeyF: 'fire', Tab: 'scores', Escape: 'pause', KeyP: 'pause', Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', KeyQ: 'tactical', KeyG: 'grenade',
   Enter: 'skip', NumpadEnter: 'skip', KeyV: 'melee', KeyH: 'heal', Digit4: 'heal', KeyX: 'gear', KeyI: 'inspect', KeyM: 'map',
 };
 
 export const TOUCH_BUTTONS = [
-  { id: 'fire', label: '🔫', x: 0.86, y: 0.58, size: 92, hold: true, drag: true },
-  { id: 'fire2', label: '🔫', x: 0.07, y: 0.52, size: 60, hold: true, map: 'fire' },
-  { id: 'aim', label: '◎', x: 0.94, y: 0.38, size: 64, hold: true, toggle: true },
-  { id: 'jump', label: '⤒', x: 0.93, y: 0.82, size: 68 },
-  { id: 'crouch', label: '⤓', x: 0.81, y: 0.86, size: 62 },
-  { id: 'reload', label: '⟳', x: 0.75, y: 0.66, size: 56 },
-  { id: 'slot', label: '⇄', x: 0.64, y: 0.88, size: 56 },
-  { id: 'grenade', label: '💣', x: 0.76, y: 0.43, size: 52 },
-  { id: 'tactical', label: '☁', x: 0.70, y: 0.30, size: 48 },
-  { id: 'interact', label: '✋', x: 0.6, y: 0.62, size: 58 },
-  { id: 'heal', label: '✚', x: 0.53, y: 0.88, size: 50 },
-  { id: 'gear', label: '◉', x: 0.83, y: 0.22, size: 46 },
-  { id: 'melee', label: '🔪', x: 0.64, y: 0.45, size: 46 },
-  { id: 'scores', label: '☰', x: 0.45, y: 0.07, size: 40 },
-  { id: 'pause', label: '❚❚', x: 0.52, y: 0.07, size: 40 },
-  { id: 'map', label: '🗺', x: 0.59, y: 0.07, size: 40 },
+  { id: 'fire', label: 'fire', x: 0.86, y: 0.58, size: 92, hold: true, drag: true },
+  { id: 'fire2', label: 'fire', x: 0.07, y: 0.52, size: 60, hold: true, map: 'fire' },
+  { id: 'aim', label: 'aim', x: 0.94, y: 0.38, size: 64, hold: true, toggle: true },
+  { id: 'jump', label: 'jump', x: 0.93, y: 0.82, size: 68 },
+  { id: 'crouch', label: 'crouch', x: 0.81, y: 0.86, size: 62 },
+  { id: 'reload', label: 'reload', x: 0.75, y: 0.66, size: 56 },
+  { id: 'slot', label: 'swap', x: 0.64, y: 0.88, size: 56 },
+  { id: 'grenade', label: 'grenade', x: 0.76, y: 0.43, size: 52 },
+  { id: 'tactical', label: 'smoke', x: 0.70, y: 0.30, size: 48 },
+  { id: 'interact', label: 'hand', x: 0.6, y: 0.62, size: 58 },
+  { id: 'heal', label: 'heal', x: 0.53, y: 0.88, size: 50 },
+  { id: 'gear', label: 'radar', x: 0.83, y: 0.22, size: 46 },
+  { id: 'melee', label: 'knife', x: 0.64, y: 0.45, size: 46 },
+  { id: 'scores', label: 'list', x: 0.45, y: 0.07, size: 40 },
+  { id: 'pause', label: 'pause', x: 0.52, y: 0.07, size: 40 },
+  { id: 'map', label: 'map', x: 0.59, y: 0.07, size: 40 },
 ];
 
 export class Input {
@@ -69,7 +70,8 @@ export class Input {
     const s = getProfile().settings;
     const snap = {
       mx, my, lookX: this.look.x, lookY: this.look.y,
-      fire: this.mouseFire || h.has('fire'), aim: this.mouseAim || (this.touchMode && this.touchAimToggle),
+      fire: this.mouseFire || h.has('fire'), aim: this.aimState(s, this.mouseAim || h.has('aim')) || (this.touchMode && this.touchAimToggle),
+      keyYaw: (h.has('lookRight') ? 1 : 0) - (h.has('lookLeft') ? 1 : 0), keyPitch: (h.has('lookUp') ? 1 : 0) - (h.has('lookDown') ? 1 : 0),
       sprint: h.has('sprint') || (this.touchMode && my > 0.92 && Math.abs(mx) < 0.4),
       crouchHeld: h.has('crouch'), crouchPressed: P.has('crouch'), jump: P.has('jump'), jumpHeld: h.has('jump'),
       reload: P.has('reload'), interact: P.has('interact'), interactHeld: h.has('interact'), scores: h.has('scores'), pause: P.has('pause'),
@@ -81,6 +83,11 @@ export class Input {
     return snap;
   }
 
+  // Hold-to-aim by default; Settings can switch it to press-once-to-toggle.
+  aimState(s, held) {
+    if (s.holdToAim !== false) return held;
+    if (held && !this._aimPrev) this.aimToggled = !this.aimToggled; this._aimPrev = held; return !!this.aimToggled;
+  }
   // ---------- Touch controls ----------
   setupTouch(root) {
     this.touchMode = true; this.touchRoot = root; root.innerHTML = '';
@@ -89,7 +96,7 @@ export class Input {
     const stickBase = el('div', 'stick-base'), stickKnob = el('div', 'stick-knob'); stickBase.append(stickKnob); root.append(stickBase); stickBase.style.display = 'none';
     this.buttons = {};
     for (const b of TOUCH_BUTTONS) {
-      const d = el('div', 'tbtn tb-' + b.id); d.textContent = b.label; const pos = layout[b.id] || b; const sz = b.size * scale;
+      const d = el('div', 'tbtn tb-' + b.id); d.innerHTML = icon(b.label); d.setAttribute('aria-label', b.id); const pos = layout[b.id] || b; const sz = b.size * scale;
       Object.assign(d.style, { left: `calc(${(pos.x * 100).toFixed(2)}% - ${sz / 2}px)`, top: `calc(${(pos.y * 100).toFixed(2)}% - ${sz / 2}px)`, width: sz + 'px', height: sz + 'px', fontSize: sz * 0.42 + 'px' });
       root.append(d); this.buttons[b.id] = d; d.dataset.id = b.id;
     }
@@ -141,7 +148,7 @@ export function openLayoutEditor(container, onDone) {
   const wrap = el('div', 'layout-editor');
   wrap.innerHTML = '<div class="le-bar"><span>Drag buttons to rearrange</span><button class="btn small" data-a="reset">Reset</button><button class="btn small primary" data-a="save">Save</button></div>';
   for (const b of TOUCH_BUTTONS) {
-    const d = el('div', 'tbtn'); d.textContent = b.label; const p = layout[b.id] || b; const sz = b.size * scale;
+    const d = el('div', 'tbtn'); d.innerHTML = icon(b.label); const p = layout[b.id] || b; const sz = b.size * scale;
     Object.assign(d.style, { left: `calc(${p.x * 100}% - ${sz / 2}px)`, top: `calc(${p.y * 100}% - ${sz / 2}px)`, width: sz + 'px', height: sz + 'px', fontSize: sz * 0.42 + 'px' });
     const drag = (cx, cy) => { const x = Math.min(0.98, Math.max(0.02, cx / window.innerWidth)), y = Math.min(0.98, Math.max(0.04, cy / window.innerHeight)); layout[b.id] = { x, y }; d.style.left = `calc(${x * 100}% - ${sz / 2}px)`; d.style.top = `calc(${y * 100}% - ${sz / 2}px)`; };
     d.addEventListener('touchmove', (e) => { e.preventDefault(); drag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });

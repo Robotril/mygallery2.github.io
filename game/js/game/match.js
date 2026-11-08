@@ -305,6 +305,24 @@ export class Match {
     if (it) { if (!this.authority) { this.netSend(null, { t: 'pick', i: it.id }); return true; } this.pickup(c, it); return true; }
     return false;
   }
+  // Would this item be useful right now? Never auto-swaps a gun you are holding.
+  wouldTake(c, it) {
+    if (it.type === 'weapon') { const same = c.slots.findIndex((w) => w && w.id === it.weaponId); if (same >= 0) return c.usePool && c.slots[same].rarity >= it.rarity; return c.slots.some((w) => !w || w.id === 'knife'); }
+    if (it.type === 'ammo') return c.ammo[it.ammoType] < 400 && c.slots.some((w) => w && w.stats.ammo === it.ammoType);
+    if (it.type === 'heal') return c.heals[it.heal] < HEALS[it.heal].max;
+    if (it.type === 'armor') return c.armor < ARMOR_TIERS[it.tier];
+    if (it.type === 'lethal' || it.type === 'tactical') { const slot = it.type === 'lethal' ? c.lethal : c.tactical; return slot.id === it.eq ? slot.n < 3 : slot.n === 0; }
+    return false;
+  }
+  autoPickup(c) {
+    if (!c.alive || c.dropping) return;
+    for (const it of this.loot.items.values()) {
+      if (Math.abs(it.x - c.pos.x) > 1.7 || Math.abs(it.z - c.pos.z) > 1.7 || Math.abs(it.y - c.pos.y) > 1.6) continue;
+      if (Math.hypot(it.x - c.pos.x, it.z - c.pos.z) > 1.6 || !this.wouldTake(c, it)) continue;
+      if (this.authority) { if (this.pickup(c, it)) this.events.emit('notify', { text: 'Picked up ' + (this.itemLabel ? this.itemLabel(it) : 'item'), kind: 'info' }); }
+      else if (!it._asked || this.time - it._asked > 1) { it._asked = this.time; this.netSend(null, { t: 'pick', i: it.id }); }
+    }
+  }
   openCrate(c, crate) {
     const items = this.loot.openCrate(crate, this.rng); c.stats.crates++;
     if (c.kind === 'local') audio.crate();

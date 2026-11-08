@@ -7,9 +7,14 @@ import { SKILLS } from '../game/match.js';
 import { audio } from '../engine/audio.js';
 import { openLayoutEditor } from '../engine/input.js';
 import { formatTime, isValidRoomCode } from '../core/util.js';
+import { icon } from './icons.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const MAPS = [{ id: 'beach', name: 'Coral Cove', sub: 'Tropical resort island', img: 'linear-gradient(135deg,#3ad6c8,#f3dfb2 60%,#ff8c42)' }, { id: 'city', name: 'Neon Harbor', sub: 'Downtown at golden hour', img: 'linear-gradient(135deg,#2b3442,#ff2bd6 55%,#ffb27a)' }];
+const MAP_ART = {
+  beach: `<svg viewBox="0 0 240 90" preserveAspectRatio="xMidYMid slice"><rect width="240" height="90" fill="#bfe6ff"/><circle cx="196" cy="24" r="12" fill="#ffd23f"/><rect y="46" width="240" height="20" fill="#33c7b8"/><path d="M0 62 Q60 54 120 62 T240 60 V90 H0Z" fill="#f3dfb2"/><path d="M58 80 Q62 56 66 40" stroke="#8a5a34" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M66 40 q-18 -6 -28 4 M66 40 q16 -10 28 -2 M66 40 q-6 -16 -20 -18 M66 40 q8 -16 22 -14" stroke="#3aa35b" stroke-width="6" fill="none" stroke-linecap="round"/><rect x="150" y="56" width="26" height="12" rx="4" fill="#ff8a3d"/><rect x="156" y="48" width="4" height="10" fill="#e0661b"/></svg>`,
+  city: `<svg viewBox="0 0 240 90" preserveAspectRatio="xMidYMid slice"><rect width="240" height="90" fill="#ffcf8f"/><circle cx="60" cy="58" r="20" fill="#ff8a3d"/><rect x="14" y="40" width="26" height="50" rx="3" fill="#474e78"/><rect x="44" y="26" width="22" height="64" rx="3" fill="#1d2242"/><rect x="72" y="46" width="30" height="44" rx="3" fill="#5aaeff"/><rect x="108" y="18" width="24" height="72" rx="3" fill="#474e78"/><rect x="138" y="36" width="34" height="54" rx="3" fill="#1d2242"/><rect x="178" y="50" width="22" height="40" rx="3" fill="#3487de"/><rect x="204" y="30" width="28" height="60" rx="3" fill="#474e78"/><g fill="#ffd23f"><rect x="50" y="34" width="4" height="5"/><rect x="58" y="34" width="4" height="5"/><rect x="114" y="28" width="4" height="5"/><rect x="122" y="40" width="4" height="5"/><rect x="146" y="46" width="4" height="5"/><rect x="156" y="58" width="4" height="5"/><rect x="212" y="40" width="4" height="5"/></g><rect y="78" width="240" height="12" fill="#33c7b8"/></svg>`,
+};
+const MAPS = [{ id: 'beach', name: 'Coral Cove', sub: 'Tropical resort island' }, { id: 'city', name: 'Neon Harbor', sub: 'Downtown at golden hour' }];
 const MODES = [{ id: 'ffa', name: 'Free-for-All' }, { id: 'tdm', name: 'Team Deathmatch' }, { id: 'gg', name: 'Gun Game' }, { id: 'br', name: 'Battle Royale' }];
 
 export class Menu {
@@ -32,7 +37,7 @@ export class Menu {
     const L = levelInfo(); const p = this.P;
     return `<div class="topbar"><div class="logo" data-go="main">CLAY<span>FRONT</span></div>
       <div class="tb-player" data-go="profile"><div class="tb-lvl">${L.level}</div><div><div class="tb-name">${esc(p.name)}</div><div class="xpbar"><i style="width:${(L.pct * 100).toFixed(1)}%"></i></div></div></div>
-      ${this.screen !== 'main' ? '<button class="btn ghost back" data-act="back">◂ Back</button>' : ''}</div>`;
+      ${this.screen !== 'main' ? `<button class="btn ghost back" data-act="back">${icon('back')} Back</button>` : ''}</div>`;
   }
   bind() {
     const r = this.root;
@@ -55,35 +60,36 @@ export class Menu {
 
   // ---------------- screens ----------------
   s_main() {
-    const ch = challengeDefs();
-    const newbie = !this.P.tutorialDone;
-    return `<div class="main-left">
-      <button class="btn howto-btn ${newbie ? 'pulse' : ''}" data-go="howto">🎓 <b>HOW TO PLAY</b><small>${newbie ? 'New? Start here — 2 minute training' : 'Training & controls guide'}</small></button>
-      <button class="btn huge primary" data-act="play-br"><b>BATTLE ROYALE</b><small>50 combatants · 1 player + 49 AI</small></button>
-      <button class="btn huge" data-act="play-gg"><b>GUN GAME</b><small>20 weapons · first to the knife wins</small></button>
-      <button class="btn huge" data-go="custom"><b>CUSTOM MATCH</b><small>Rooms, join codes, invite links, bots</small></button>
-      <div class="nav-grid">
-        <button class="btn tile" data-go="characters">🧑‍🎤<span>Characters</span></button><button class="btn tile" data-go="loadouts">🎒<span>Loadouts</span></button>
-        <button class="btn tile" data-go="weapons">🔫<span>Armory</span></button><button class="btn tile" data-go="profile">🪪<span>Profile</span></button>
-        <button class="btn tile" data-go="stats">📊<span>Statistics</span></button><button class="btn tile" data-go="settings">⚙️<span>Settings</span></button>
+    const ch = challengeDefs(); const done = ch.filter((c) => c.done).length; const newbie = !this.P.tutorialDone;
+    const round = (go, ic, label, cls = '', i = 0) => `<button class="round drop ${cls}" style="--i:${i}" ${go.startsWith('act:') ? `data-act="${go.slice(4)}"` : `data-go="${go}"`}><span class="knob">${icon(ic)}</span>${label}</button>`;
+    return `<div class="home-modes">
+      <button class="slab slab-br c-tangerine drop" style="--i:0" data-act="play-br"><span class="slab-title pressed">Battle Royale</span><span class="slab-sub">Drop onto the island with 49 bots. Grab gear, stay inside the circle, be the last one standing.</span><span class="slab-go">${icon('play')} Play</span></button>
+      <div class="slab-pair">
+        <button class="slab c-teal drop" style="--i:1" data-act="play-gg"><span class="slab-title pressed">Gun Game</span><span class="slab-sub">Every knockout gives you a new gun. Win with the knife.</span></button>
+        <button class="slab c-sky drop" style="--i:2" data-go="custom"><span class="slab-title pressed">Custom Match</span><span class="slab-sub">Make a room and share the code with friends.</span></button>
+      </div>
+      <div class="roundrow">
+        ${round('howto', 'learn', 'How to play', newbie ? 'c-sun' : '', 3)}${round('characters', 'person', 'Characters', '', 4)}${round('loadouts', 'bag', 'Loadouts', '', 5)}${round('weapons', 'rifle', 'Armory', '', 6)}${round('stats', 'chart', 'Stats', '', 7)}${round('settings', 'gear', 'Settings', '', 8)}
       </div></div>
-      <div class="main-right"><div class="panel"><h3>Daily Challenges</h3>${ch.map((c) => `<div class="chal ${c.done ? 'done' : ''}"><div>${esc(c.text)}</div><div class="cbar"><i style="width:${(c.progress / c.goal * 100).toFixed(0)}%"></i></div><small>${c.progress}/${c.goal} · ${c.xp} XP${c.done ? ' ✓' : ''}</small></div>`).join('')}</div>
-      <div class="panel hint">${this.app.touch ? 'Touch: left stick moves · drag the right side to look · red 🔫 button shoots.' : '<b>Left Click</b> shoot · <b>Right Click</b> aim · <b>WASD</b> move · <b>Mouse</b> look · <b>R</b> reload · <b>Space</b> jump · <b>Shift</b> sprint · <b>C</b> crouch/slide · <b>E</b> pick up · <b>Esc</b> pause'}<br><a href="#" data-go="howto">Full controls &amp; tutorial ▸</a></div></div>`;
+      <div class="home-side">
+        ${this.chalOpen ? `<div class="chal-list clay drop">${ch.map((c) => `<div class="chal ${c.done ? 'done' : ''}"><div>${esc(c.text)}</div><div class="cbar"><i style="width:${(c.progress / c.goal * 100).toFixed(0)}%"></i></div><small>${c.progress} of ${c.goal} · ${c.xp} XP${c.done ? ' · done' : ''}</small></div>`).join('')}</div>` : ''}
+        <button class="chal-chip clay drop" style="--i:9" data-act="chal-toggle" aria-expanded="${!!this.chalOpen}">${icon('trophy')} Daily challenges ${done} of ${ch.length}</button>
+      </div>`;
   }
   s_br() {
     return `<h2>Battle Royale</h2><p class="sub">Drop from the plane, loot, survive the storm. You vs 49 AI-controlled opponents (offline, single-player).</p>
       ${this.mapPicker('map')}${this.diffPicker()}
-      <div class="row"><button class="btn primary big" data-act="start-br">Deploy ▸</button><button class="btn" data-act="br-friends">Play with friends (room)</button></div>`;
+      <div class="row"><button class="btn primary big" data-act="start-br">${icon('play')} Drop in</button><button class="btn" data-act="br-friends">${icon('users')} Play with friends</button></div>`;
   }
   s_gg() {
-    return `<h2>Gun Game</h2><p class="sub">Every elimination upgrades your weapon through ${GUN_GAME_ORDER.length} guns. Melee kills demote your victim. Final weapon: the knife.</p>
+    return `<h2>Gun Game</h2><p class="sub">Every knockout gives you the next gun, ${GUN_GAME_ORDER.length} in all. Knock someone out with your knife and they drop back one gun. The last gun is the knife itself, so win with it.</p>
       ${this.mapPicker('map')}${this.diffPicker()}
       <div class="form"><label>AI opponents <b data-out="ggBots">${this.sel.ggBots}</b><input type="range" min="3" max="15" value="${this.sel.ggBots}" data-act="noop" data-sel="ggBots"></label>
       <label>Time limit (min) <b data-out="ggTime">${this.sel.ggTime}</b><input type="range" min="3" max="20" value="${this.sel.ggTime}" data-sel="ggTime"></label></div>
       <div class="ladder">${GUN_GAME_ORDER.map((w, i) => `<span>${i + 1}. ${esc(WEAPON_MAP[w].name)}</span>`).join('')}</div>
-      <div class="row"><button class="btn primary big" data-act="start-gg">Start ▸</button><button class="btn" data-act="gg-friends">Play with friends (room)</button></div>`;
+      <div class="row"><button class="btn primary big" data-act="start-gg">${icon('play')} Start</button><button class="btn" data-act="gg-friends">${icon('users')} Play with friends</button></div>`;
   }
-  mapPicker() { return `<div class="maps">${MAPS.map((m) => `<div class="card map ${this.sel.map === m.id ? 'sel' : ''}" data-act="sel-map" data-v="${m.id}"><div class="map-img" style="background:${m.img}"></div><b>${m.name}</b><small>${m.sub}</small></div>`).join('')}</div>`; }
+  mapPicker() { return `<div class="maps">${MAPS.map((m) => `<div class="card map ${this.sel.map === m.id ? 'sel' : ''}" data-act="sel-map" data-v="${m.id}"><div class="map-img">${MAP_ART[m.id]}</div><b>${m.name}</b><small>${m.sub}</small></div>`).join('')}</div>`; }
   diffPicker(key = 'difficulty', obj = this.sel) { return `<div class="seg">${Object.entries(SKILLS).map(([k, v]) => `<button class="btn ${obj[key] === k ? 'on' : ''}" data-act="sel-diff" data-k="${key}" data-v="${k}">${v.name}</button>`).join('')}</div>`; }
 
   s_custom() {
@@ -101,7 +107,7 @@ export class Menu {
       <label>Max human players <b data-out="maxPlayers">${c.maxPlayers}</b><input type="range" min="2" max="8" value="${c.maxPlayers}" data-custom="maxPlayers"></label>
       ${c.mode !== 'gg' ? `<div class="lbl">Allowed weapon classes <small>(none checked = all)</small></div><div class="chips">${['pistol', ...PRIMARY_CLASSES].map((k) => `<label class="chip"><input type="checkbox" data-act="allow" data-v="${k}" ${c.allowed.includes(k) ? 'checked' : ''}>${CLASS_NAMES[k]}</label>`).join('')}</div>` : ''}
       <div class="lbl">Connection for rooms</div><div class="seg"><button class="btn ${c.net === 'online' ? 'on' : ''}" data-act="net" data-v="online">Online (peer-to-peer)</button><button class="btn ${c.net === 'local' ? 'on' : ''}" data-act="net" data-v="local">Same device (tabs)</button></div>
-      <small class="note">${c.net === 'online' ? 'Players on other devices join with the room code or invite link. Uses WebRTC; a public signaling broker connects peers.' : 'Opens a room other tabs/windows of this browser can join — no network needed.'}</small>
+      <small class="note">${c.net === 'online' ? 'Players on other devices join with the room code or invite link. Uses WebRTC; a public signaling broker connects peers.' : 'Opens a room other tabs/windows of this browser can join. No network needed.'}</small>
       </div><div class="row"><button class="btn primary" data-act="create-room">Create Private Room</button><button class="btn" data-act="custom-solo">Play Solo vs AI</button></div></div>
       <div class="panel"><h3>Join</h3><div class="form"><label>Room code<input id="join-code" maxlength="6" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:4px;font-size:22px"></label>
       <div class="seg"><button class="btn ${c.net === 'online' ? 'on' : ''}" data-act="net" data-v="online">Online</button><button class="btn ${c.net === 'local' ? 'on' : ''}" data-act="net" data-v="local">Same device</button></div></div>
@@ -116,8 +122,8 @@ export class Menu {
       <div class="row"><button class="btn" data-act="copy-link">Copy invite link</button><button class="btn" data-act="copy-code">Copy code</button>${navigator.share ? '<button class="btn" data-act="share">Share…</button>' : ''}</div>
       <h3>Settings</h3><div class="kv"><span>Mode</span><b>${MODES.find((m) => m.id === s.mode)?.name}</b><span>Map</span><b>${MAPS.find((m) => m.id === s.map)?.name}</b><span>AI</span><b>${s.mode === 'br' ? `fills to ${s.brPlayers}` : s.bots} · ${SKILLS[s.difficulty]?.name}</b><span>Duration</span><b>${s.mode === 'br' ? 'Until last standing' : s.timeLimit + ' min'}</b></div></div>
       <div class="panel"><h3>Players (${room.players.length}/${s.maxPlayers})</h3><div class="plist">${room.players.map((p) => `<div class="pl"><span class="dot ${p.host || p.ready ? 'ok' : ''}"></span><b>${esc(p.name)}</b> <small>${esc(CHAR_MAP[p.charId]?.name || '')}</small> ${p.host ? '<i class="tag">HOST</i>' : p.ready ? '<i class="tag ok">READY</i>' : '<i class="tag">waiting</i>'}</div>`).join('')}</div>
-      <p class="note">${host ? 'Start whenever you like — AI bots fill the remaining slots.' : 'Waiting for the host to start the match…'}</p>
-      <div class="row">${host ? '<button class="btn primary big" data-act="room-start">Start Match ▸</button>' : `<button class="btn primary" data-act="room-ready">${room.players.find((p) => p.peerId === room.t.id)?.ready ? 'Not ready' : 'Ready'}</button>`}<button class="btn" data-act="room-leave">Leave Room</button></div></div></div>`;
+      <p class="note">${host ? 'Start when you are ready. Bots fill the empty spots.' : 'Waiting for the host to start the match…'}</p>
+      <div class="row">${host ? `<button class="btn primary big" data-act="room-start">${icon('play')} Start match</button>` : `<button class="btn primary" data-act="room-ready">${room.players.find((p) => p.peerId === room.t.id)?.ready ? 'Not ready' : 'Ready'}</button>`}<button class="btn" data-act="room-leave">Leave Room</button></div></div></div>`;
   }
 
   s_characters() {
@@ -125,12 +131,12 @@ export class Menu {
     const opt = (list, key) => `<select data-act="cust" data-k="${key}">${list.map((o) => `<option value="${o.id}" ${look[key] === o.id ? 'selected' : ''}>${o.name}</option>`).join('')}</select>`;
     const sw = (key) => `<div class="swatches">${PALETTE.map((c) => `<i style="background:${c}" class="${look[key] === c ? 'on' : ''}" data-act="cust" data-k="${key}" data-v="${c}"></i>`).join('')}</div>`;
     const locked = sel.unlock > lvl;
-    return `<div class="char-layout"><div class="char-grid">${CHARACTERS.map((c) => `<div class="card char ${c.id === this.charSel ? 'sel' : ''} ${c.unlock > lvl ? 'locked' : ''} ${p.character === c.id ? 'equipped' : ''}" data-act="char" data-v="${c.id}"><div class="cface" style="background:radial-gradient(circle at 50% 40%, ${c.skin} 0 32%, ${c.outfit} 33% 60%, ${c.accent} 61%)"></div><b>${esc(c.name)}</b><small>${c.unlock > lvl ? '🔒 Level ' + c.unlock : esc(c.role)}</small></div>`).join('')}</div>
+    return `<div class="char-layout"><div class="char-grid">${CHARACTERS.map((c) => `<div class="card char ${c.id === this.charSel ? 'sel' : ''} ${c.unlock > lvl ? 'locked' : ''} ${p.character === c.id ? 'equipped' : ''}" data-act="char" data-v="${c.id}"><div class="cface" style="background:radial-gradient(circle at 50% 40%, ${c.skin} 0 32%, ${c.outfit} 33% 60%, ${c.accent} 61%)"></div><b>${esc(c.name)}</b><small>${c.unlock > lvl ? icon('lock') + ' Level ' + c.unlock : esc(c.role)}</small></div>`).join('')}</div>
       <div class="drag-zone"></div>
-      <div class="panel char-panel"><h3>${esc(sel.name)}</h3><p class="note">${esc(sel.role)} — ${esc(sel.bio)}</p>
+      <div class="panel char-panel"><h3>${esc(sel.name)}</h3><p class="note"><b>${esc(sel.role)}.</b> ${esc(sel.bio)}</p>
       <div class="form"><div class="lbl">Outfit</div>${sw('outfit')}<div class="lbl">Secondary</div>${sw('outfit2')}<div class="lbl">Armor / vest</div>${sw('vest')}<div class="lbl">Accent</div>${sw('accent')}
       <label>Headgear${opt(HELMETS, 'helmet')}</label><label>Mask${opt(MASKS, 'mask')}</label><label>Hair${opt(HAIR, 'hair')}</label><label>Accessory${opt(ACCESSORIES, 'acc')}</label></div>
-      <div class="row">${locked ? `<button class="btn" disabled>Unlocks at level ${sel.unlock}</button>` : `<button class="btn primary" data-act="equip-char">${p.character === sel.id ? 'Equipped ✓' : 'Equip'}</button>`}<button class="btn" data-act="reset-char">Reset look</button></div></div></div>`;
+      <div class="row">${locked ? `<button class="btn" disabled>Unlocks at level ${sel.unlock}</button>` : `<button class="btn primary" data-act="equip-char">${p.character === sel.id ? icon('check') + ' Equipped' : 'Equip'}</button>`}<button class="btn" data-act="reset-char">Reset look</button></div></div></div>`;
   }
 
   buildFor(id) { const lo = this.P.loadouts[this.editLoadout]; return lo.builds?.[id] || {}; }
@@ -139,19 +145,19 @@ export class Menu {
     const w = WEAPON_MAP[wsel]; const b = lo.builds[wsel] || {}; const wl = weaponLevel(p.weaponXp[wsel]);
     const wpick = (slot, list) => `<div class="wlist">${list.map((x) => `<div class="tile wt ${lo[slot] === x.id ? 'on' : ''}" data-act="lo-w" data-slot="${slot}" data-v="${x.id}"><b>${esc(x.name)}</b><small>${CLASS_NAMES[x.cls]}</small></div>`).join('')}</div>`;
     const att = (slot) => { const list = allowedAttachments(w, slot); const cur = b[slot] || (slot === 'optic' ? w.defOptic || 'iron' : list[0].id); return `<label>${slot[0].toUpperCase() + slot.slice(1)}<select data-act="lo-att" data-k="${slot}">${list.map((a) => `<option value="${a.id}" ${cur === a.id ? 'selected' : ''} title="${esc(a.desc)}">${esc(a.name)}</option>`).join('')}</select><small>${esc(list.find((a) => a.id === cur)?.desc || '')}</small></label>`; };
-    return `<div class="tabs">${p.loadouts.map((l, i) => `<button class="btn ${i === this.editLoadout ? 'on' : ''}" data-act="lo-tab" data-v="${i}">${esc(l.name)}${i === p.activeLoadout ? ' ★' : ''}</button>`).join('')}</div>
+    return `<div class="tabs">${p.loadouts.map((l, i) => `<button class="btn ${i === this.editLoadout ? 'on' : ''}" data-act="lo-tab" data-v="${i}">${esc(l.name)}${i === p.activeLoadout ? ' ' + icon('star') : ''}</button>`).join('')}</div>
       <div class="cols lo"><div class="panel"><div class="form"><label>Loadout name<input data-act="noop" id="lo-name" maxlength="18" value="${esc(lo.name)}"></label></div>
         <div class="lbl">Primary</div>${wpick('primary', WEAPONS.filter((x) => PRIMARY_CLASSES.includes(x.cls)))}
         <div class="lbl">Secondary</div>${wpick('secondary', WEAPONS.filter((x) => x.cls === 'pistol' || x.cls === 'melee' || x.cls === 'special'))}</div>
       <div class="panel"><h3>${esc(w.name)} <small>Lv ${wl}</small></h3><div class="seg">${['primary', 'secondary'].map((s) => `<button class="btn ${wsel === lo[s] ? 'on' : ''}" data-act="lo-edit" data-v="${lo[s]}">${s}</button>`).join('')}</div>
         <div class="form">${['optic', 'barrel', 'grip', 'mag'].map(att).join('')}
-        <div class="lbl">Weapon skin</div><div class="skins">${SKINS.map((s) => `<div class="skin ${(b.skin || 'factory') === s.id ? 'on' : ''} ${s.level > wl ? 'locked' : ''}" data-act="lo-skin" data-v="${s.id}" title="${esc(s.name)}${s.level > wl ? ' (weapon level ' + s.level + ')' : ''}" style="background:${s.colors ? `linear-gradient(135deg,${s.colors.join(',')})` : '#555'}">${s.level > wl ? '🔒' : ''}</div>`).join('')}</div>
+        <div class="lbl">Weapon skin</div><div class="skins">${SKINS.map((s) => `<div class="skin ${(b.skin || 'factory') === s.id ? 'on' : ''} ${s.level > wl ? 'locked' : ''}" data-act="lo-skin" data-v="${s.id}" title="${esc(s.name)}${s.level > wl ? ' (weapon level ' + s.level + ')' : ''}" style="background:${s.colors ? `linear-gradient(135deg,${s.colors.join(',')})` : '#555'}">${s.level > wl ? icon('lock') : ''}</div>`).join('')}</div>
         ${statBars(buildStats(wsel, b))}</div></div>
       <div class="panel"><div class="form"><label>Lethal<select data-act="lo-eq" data-k="lethal">${LETHALS.map((l) => `<option value="${l.id}" ${lo.lethal === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></label>
         <label>Tactical<select data-act="lo-eq" data-k="tactical">${TACTICALS.map((l) => `<option value="${l.id}" ${lo.tactical === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></label>
         <label>Field gear<select data-act="lo-eq" data-k="gear">${GEAR.map((l) => `<option value="${l.id}" ${lo.gear === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></label><small class="note">${esc(GEAR.find((g) => g.id === lo.gear)?.desc)}</small>
-        <div class="lbl">Perks (pick 3)</div><div class="perks">${PERKS.map((k) => `<div class="tile perk ${lo.perks.includes(k.id) ? 'on' : ''}" data-act="lo-perk" data-v="${k.id}"><b>${k.icon} ${esc(k.name)}</b><small>${esc(k.desc)}</small></div>`).join('')}</div></div>
-        <div class="row"><button class="btn primary" data-act="lo-active">${this.editLoadout === p.activeLoadout ? 'Active loadout ✓' : 'Set as active'}</button></div></div></div>`;
+        <div class="lbl">Perks (pick 3)</div><div class="perks">${PERKS.map((k) => `<div class="tile perk ${lo.perks.includes(k.id) ? 'on' : ''}" data-act="lo-perk" data-v="${k.id}"><b>${icon(k.icon)} ${esc(k.name)}</b><small>${esc(k.desc)}</small></div>`).join('')}</div></div>
+        <div class="row"><button class="btn primary" data-act="lo-active">${this.editLoadout === p.activeLoadout ? 'Active loadout' : 'Set as active'}</button></div></div></div>`;
   }
   s_weapons() {
     const p = this.P; const w = WEAPON_MAP[this.armory]; const xp = p.weaponXp[w.id] || 0; const lvl = weaponLevel(xp);
@@ -159,7 +165,7 @@ export class Menu {
       <div class="drag-zone"></div>
       <div class="panel"><h3>${esc(w.name)}</h3><p class="note">${esc(w.desc)}</p><div class="kv"><span>Class</span><b>${CLASS_NAMES[w.cls]}</b><span>Fire mode</span><b>${w.mode}${w.burst > 1 ? ' ×' + w.burst : ''}</b><span>Magazine</span><b>${w.mag || '—'}</b><span>Rate</span><b>${w.rpm} rpm</b></div>
       ${statBars(buildStats(w.id, {}))}<div class="lbl">Weapon level ${lvl} · ${xp % WEAPON_XP_PER_LEVEL}/${WEAPON_XP_PER_LEVEL} XP</div><div class="xpbar"><i style="width:${(xp % WEAPON_XP_PER_LEVEL) / WEAPON_XP_PER_LEVEL * 100}%"></i></div>
-      <div class="lbl">Skins</div><div class="skins">${SKINS.map((s) => `<div class="skin ${s.level > lvl ? 'locked' : ''}" title="${esc(s.name)} — weapon level ${s.level}" style="background:${s.colors ? `linear-gradient(135deg,${s.colors.join(',')})` : '#555'}">${s.level > lvl ? '🔒' : ''}</div>`).join('')}</div>
+      <div class="lbl">Skins</div><div class="skins">${SKINS.map((s) => `<div class="skin ${s.level > lvl ? 'locked' : ''}" title="${esc(s.name)}, weapon level ${s.level}" style="background:${s.colors ? `linear-gradient(135deg,${s.colors.join(',')})` : '#555'}">${s.level > lvl ? icon('lock') : ''}</div>`).join('')}</div>
       <p class="note">Drag the weapon to rotate. Earn weapon XP with eliminations to unlock skins.</p></div></div>`;
   }
   s_profile() {
@@ -167,7 +173,7 @@ export class Menu {
     return `<h2>Profile</h2><div class="cols"><div class="panel"><div class="form"><label>Callsign<input id="pname" maxlength="18" value="${esc(p.name)}"></label></div><div class="row"><button class="btn primary" data-act="save-name">Save</button></div>
       <div class="biglvl">Level ${L.level}</div><div class="xpbar big"><i style="width:${L.pct * 100}%"></i></div><small>${L.into} / ${L.need} XP · Total ${p.xp} XP</small>
       <h3>Unlocks</h3><div class="unl">${CHARACTERS.filter((c) => c.unlock > 1).map((c) => `<span class="${c.unlock <= L.level ? 'ok' : ''}">${esc(c.name)} · Lv ${c.unlock}</span>`).join('')}</div></div>
-      <div class="panel"><h3>Achievements</h3>${ACHIEVEMENTS.map((a) => `<div class="ach ${p.achievements[a.id] ? 'ok' : ''}"><b>${p.achievements[a.id] ? '🏆' : '🔒'} ${esc(a.name)}</b><small>${esc(a.desc)}</small></div>`).join('')}
+      <div class="panel"><h3>Achievements</h3>${ACHIEVEMENTS.map((a) => `<div class="ach ${p.achievements[a.id] ? 'ok' : ''}"><b>${icon(p.achievements[a.id] ? 'trophy' : 'lock')} ${esc(a.name)}</b><small>${esc(a.desc)}</small></div>`).join('')}
       <h3>Recent matches</h3>${p.history.length ? p.history.map((h) => `<div class="hist ${h.won ? 'won' : ''}"><b>${h.mode.toUpperCase()}</b> ${esc(MAPS.find((m) => m.id === h.map)?.name || '')} · ${h.won ? 'WIN' : h.place ? '#' + h.place : 'Loss'} · ${h.kills} kills · +${h.xp} XP</div>`).join('') : '<p class="note">No matches yet.</p>'}</div></div>`;
   }
   s_stats() {
@@ -186,11 +192,11 @@ export class Menu {
     if (tab === 'graphics') body = `<label>Quality preset<select data-set="graphics">${['auto', 'low', 'medium', 'high', 'ultra'].map((k) => `<option value="${k}" ${s.graphics === k ? 'selected' : ''}>${k === 'auto' ? `Auto (detected: ${PRESETS[g.detected.preset].name})` : PRESETS[k].name}</option>`).join('')}</select></label>
       <small class="note">Detected: ${esc(g.detected.reason)} · GPU: ${esc(g.detected.gpu)}. Auto mode lowers resolution and quality if frame rate drops.</small>
       <div class="kv">${(() => { const q = PRESETS[g.presetId]; return `<span>Active</span><b>${q.name}</b><span>Shadows</span><b>${q.shadows ? q.shadowSize : 'Off'}</b><span>Bloom</span><b>${q.bloom ? 'On' : 'Off'}</b><span>Ambient occlusion</span><b>${q.ao ? 'On' : 'Off'}</b><span>Textures</span><b>${q.texSize}px</b><span>View distance</span><b>${q.drawDist}m</b>`; })()}</div>
-      <label>Text &amp; interface size<select data-set="uiScale">${[['auto', 'Auto (larger on computers)'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%'], ['1.45', '145%'], ['1.6', '160%']].map(([v, n]) => `<option value="${v}" ${String(s.uiScale) === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label>Text &amp; interface size<select data-set="uiScale">${[['0.8', 'Smaller'], ['auto', 'Auto (fits your screen)'], ['1.15', 'Bigger'], ['1.3', 'Much bigger'], ['1.5', 'Huge']].map(([v, n]) => `<option value="${v}" ${String(s.uiScale) === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       ${rng('renderScale', 0.5, 1, 0.05, 'Render scale')}${rng('fov', 60, 105, 1, 'Field of view')}${chk('showFps', 'Show FPS counter')}<small class="note">Graphics changes apply fully to the next match.</small>`;
-    if (tab === 'controls') body = `${rng('sensitivity', 0.2, 3, 0.05, 'Mouse sensitivity')}${rng('adsSensitivity', 0.2, 1.5, 0.05, 'Aim-down-sight multiplier')}${chk('invertY', 'Invert Y axis')}${chk('holdToCrouch', 'Hold to crouch (instead of toggle)')}${chk('fullscreen', 'Fullscreen when a match starts')}
+    if (tab === 'controls') body = `${rng('sensitivity', 0.2, 3, 0.05, 'Mouse sensitivity')}${rng('adsSensitivity', 0.2, 1.5, 0.05, 'Sensitivity while zoomed')}${chk('autoSprint', 'Run automatically when you keep moving forward')}${chk('autoPickup', 'Pick up loot by walking over it')}${chk('pcAimAssist', 'Aim assist (helps your aim stick to enemies)')}${chk('keyHints', 'Show the key reminder bar during matches')}${chk('holdToAim', 'Hold to zoom (turn off to press once to zoom)')}${chk('invertY', 'Invert up and down')}${chk('holdToCrouch', 'Hold to crouch (instead of toggle)')}${chk('fullscreen', 'Fullscreen when a match starts')}
       <label>Crosshair color<input type="color" value="${s.crosshairColor}" data-set="crosshairColor"></label>
-      <div class="keys">${[['WASD', 'Move'], ['Mouse', 'Look'], ['LMB', 'Fire'], ['RMB', 'Aim'], ['R', 'Reload'], ['Space', 'Jump'], ['Shift', 'Sprint'], ['Ctrl / C', 'Crouch · Slide while sprinting'], ['E / F', 'Interact / loot'], ['1 · 2 · Wheel', 'Switch weapon'], ['G', 'Lethal grenade'], ['Q', 'Tactical'], ['V / MMB', 'Melee'], ['H / 4', 'Heal / Medkit'], ['X', 'Field gear'], ['I', 'Inspect weapon'], ['Tab', 'Scoreboard'], ['M', 'Map'], ['Esc / P', 'Pause']].map(([k, v]) => `<span><kbd>${k}</kbd>${v}</span>`).join('')}</div>`;
+      <div class="keys">${[['Left click or F', 'Shoot'], ['Right click or Z', 'Zoom'], ['Mouse or arrow keys', 'Aim'], ['W A S D', 'Move'], ['Space', 'Jump'], ['Shift', 'Run (also automatic)'], ['C or Ctrl', 'Crouch, slide while running'], ['R', 'Reload'], ['1, 2 or wheel', 'Switch weapon'], ['E', 'Open crates, swap guns'], ['G', 'Grenade'], ['Q', 'Smoke or stun'], ['V', 'Melee'], ['H', 'Heal'], ['X', 'Gear'], ['I', 'Inspect weapon'], ['Tab', 'Scores'], ['M', 'Map'], ['Esc', 'Pause']].map(([k, v]) => `<span><kbd>${k}</kbd>${v}</span>`).join('')}</div>`;
     if (tab === 'touch') body = `${rng('touchSensitivity', 0.3, 3, 0.05, 'Touch look sensitivity')}${rng('buttonScale', 0.7, 1.5, 0.05, 'Button size')}${chk('aimAssist', 'Aim assist (touch)')}<div class="row"><button class="btn" data-act="edit-layout">Edit button layout</button></div><small class="note">Play in landscape. Pushing the stick fully forward sprints.</small>`;
     if (tab === 'audio') body = `${rng('master', 0, 1, 0.05, 'Master volume')}${rng('sfx', 0, 1, 0.05, 'Effects')}${rng('music', 0, 1, 0.05, 'Music')}${rng('ambience', 0, 1, 0.05, 'Ambience')}`;
     if (tab === 'data') body = `<p class="note">Progress, loadouts and settings are saved automatically on this device.</p><div class="row"><button class="btn danger" data-act="reset-all">Reset all progress</button></div>`;
@@ -199,12 +205,12 @@ export class Menu {
   s_results() {
     const r = this.app.lastResults; if (!r) return '';
     const res = r.res, sum = r.summary, me = r.me; const br = res.mode === 'br';
-    return `<div class="results ${res.won ? 'win' : 'loss'}"><div class="res-banner">${res.mode === 'training' ? (res.won ? 'TRAINING COMPLETE' : 'TRAINING ENDED') : res.won ? (br ? 'VICTORY ROYALE' : 'VICTORY') : br ? `#${me.place || '?'} PLACE` : 'DEFEAT'}</div><div class="res-sub">${esc(res.reason || '')} · Winner: ${esc(res.winnerName)}</div>
+    return `<div class="results ${res.won ? 'win' : 'loss'}"><div class="res-banner">${res.mode === 'training' ? (res.won ? 'Training complete!' : 'Training over') : res.won ? (br ? 'Last one standing!' : 'You win!') : br ? `You placed #${me.place || '?'}` : 'Good try!'}</div><div class="res-sub">${res.mode === 'training' ? 'You are ready to play.' : `${esc(res.reason || '')} · Winner: ${esc(res.winnerName)}`}</div>
       <div class="cols"><div class="panel"><div class="stats">${[['Eliminations', me.kills], ['Deaths', me.deaths], ['Assists', me.assists], ['Headshots', me.headshots], ['Damage', Math.round(me.damage)], ['Accuracy', (me.hits / Math.max(1, me.shots) * 100).toFixed(0) + '%'], br ? ['Placement', '#' + (me.place || '?')] : ['Score', me.score], ['Time', formatTime(me.time)]].map(([k, v]) => `<div class="stat"><small>${k}</small><b>${v}</b></div>`).join('')}</div>
         <h3>+${sum.xp} XP</h3>${r.xpLines.map((l) => `<div class="xpl"><span>${esc(l[0])}</span><b>+${l[1]}</b></div>`).join('')}
-        ${sum.levelAfter > sum.levelBefore ? `<div class="lvlup">LEVEL UP! ${sum.levelBefore} → ${sum.levelAfter}</div>` : ''}
-        ${sum.challengesDone.map((c) => `<div class="xpl ok"><span>✓ ${esc(c.text)}</span><b>+${c.xp}</b></div>`).join('')}
-        ${sum.achievements.map((a) => `<div class="xpl ok"><span>🏆 ${esc(a.name)}</span></div>`).join('')}</div>
+        ${sum.levelAfter > sum.levelBefore ? `<div class="lvlup">${icon('star')} Level up! You reached level ${sum.levelAfter}</div>` : ''}
+        ${sum.challengesDone.map((c) => `<div class="xpl ok"><span>${icon('check')} ${esc(c.text)}</span><b>+${c.xp}</b></div>`).join('')}
+        ${sum.achievements.map((a) => `<div class="xpl ok"><span>${icon('trophy')} ${esc(a.name)}</span></div>`).join('')}</div>
       <div class="panel"><h3>Scoreboard</h3><table class="sb">${res.scoreboard.slice(0, 12).map((s, i) => `<tr class="${s.id === me.id ? 'me' : ''}"><td>${br ? (s.alive ? '#1' : '#' + s.place) : i + 1}</td><td>${esc(s.name)}${s.bot ? ' <i class="bot">BOT</i>' : ''}</td><td>${s.kills} K</td><td>${s.deaths} D</td></tr>`).join('')}</table></div></div>
       <div class="row center"><button class="btn primary big" data-act="again">Play Again</button><button class="btn big" data-act="to-main">Main Menu</button></div></div>`;
   }
@@ -213,22 +219,22 @@ export class Menu {
     const t = this.app.touch; const tab = this.howTab || (t ? 'mobile' : 'pc');
     const row = (keys, what) => `<div class="hk"><span>${keys.map((x) => `<kbd>${x}</kbd>`).join(' ')}</span><b>${what}</b></div>`;
     const sec = {
-      pc: `<h3>Keyboard &amp; mouse</h3><div class="hkeys">${row(['Left Click'], 'Shoot')}${row(['Right Click'], 'Aim down sights (hold)')}${row(['Mouse'], 'Look around')}${row(['W', 'A', 'S', 'D'], 'Move')}${row(['Shift'], 'Sprint (hold)')}${row(['Space'], 'Jump')}${row(['C', 'Ctrl'], 'Crouch · slide while sprinting')}${row(['R'], 'Reload')}${row(['1', '2', 'Wheel'], 'Switch weapon')}${row(['E', 'F'], 'Pick up loot · open crates')}${row(['G'], 'Throw grenade')}${row(['Q'], 'Smoke / stun')}${row(['V', 'Middle Click'], 'Melee')}${row(['H'], 'Heal / medkit')}${row(['X'], 'Field gear (recon pulse)')}${row(['I'], 'Inspect weapon')}${row(['Tab'], 'Scoreboard (hold)')}${row(['M'], 'Full map')}${row(['Esc'], 'Pause · release mouse')}</div>
-        <p class="note">The first click in a match captures the mouse so you can look around freely — that click also fires. Press Esc to get your cursor back.</p>`,
-      mobile: `<h3>Touch controls</h3><div class="hkeys">${row(['Left stick'], 'Move (push fully forward to sprint)')}${row(['Drag right side'], 'Look around')}${row(['🔫'], 'Shoot — drag on it to aim while firing')}${row(['◎'], 'Aim down sights (toggle)')}${row(['⤒'], 'Jump')}${row(['⤓'], 'Crouch · slide while sprinting')}${row(['⟳'], 'Reload')}${row(['⇄'], 'Switch weapon')}${row(['✋'], 'Pick up loot')}${row(['💣', '☁'], 'Grenade · smoke/stun')}${row(['✚'], 'Heal')}</div><p class="note">Hold your device in landscape. Button positions, size, sensitivity and aim assist are in Settings → Touch.</p>`,
-      modes: `<h3>Battle Royale</h3><p>You and 49 AI opponents jump from a plane. Press <kbd>Space</kbd> to drop, steer with <kbd>WASD</kbd>, and the parachute opens automatically. You land with nothing: grab weapons, ammo, armor and heals with <kbd>E</kbd>. Stay inside the shrinking zone (white circle on the map) — the storm outside hurts more each phase. Last one standing wins.</p>
-        <h3>Gun Game</h3><p>Everyone starts with the same pistol. Each elimination gives you the next of 20 weapons. Melee kills demote your victim. Finish with a knife kill to win.</p>
-        <h3>Custom Match</h3><p>Pick Free-for-All, Team Deathmatch, Gun Game or Battle Royale; choose map, bots, difficulty, time and weapon classes. Play solo, or create a room and share the 6-letter code or invite link so friends can join.</p>`,
-      tips: `<h3>Tips</h3><ul class="tips"><li>Aim for the head — headshots deal much more damage.</li><li>Hold <kbd>Right Click</kbd> to aim: shots become far more accurate, but you move slower.</li><li>Shooting while moving or jumping spreads your bullets. Stop or crouch for long shots.</li><li>Fire in short bursts with automatic weapons to control recoil.</li><li>Your health regenerates in Gun Game and Custom matches. In Battle Royale, press <kbd>H</kbd> to use bandages, medkits or shield cells.</li><li>Armor (blue bar) absorbs damage before health.</li><li>Red dots on the minimap are enemy gunfire. Suppressors hide you from it.</li><li>Gold crates contain high-tier loot. Watch for supply drops in Battle Royale.</li><li>Shoot red barrels to blow them up; shoot glass to break it.</li></ul>`,
+      pc: `<h3>Keyboard and mouse</h3><div class="hkeys">${row(['Left Click', 'F'], 'Shoot')}${row(['Right Click', 'Z'], 'Zoom in to aim')}${row(['Mouse', 'Arrow keys'], 'Look and aim')}${row(['W', 'A', 'S', 'D'], 'Move. You start running on your own.')}${row(['Space'], 'Jump')}${row(['C', 'Ctrl'], 'Crouch, or slide while running')}${row(['R'], 'Reload')}${row(['1', '2', 'Wheel'], 'Switch weapon')}${row(['E'], 'Open crates (loot is picked up when you walk over it)')}${row(['G'], 'Throw a grenade')}${row(['Q'], 'Smoke or stun')}${row(['V'], 'Melee')}${row(['H'], 'Heal')}${row(['X'], 'Gear (recon pulse)')}${row(['Tab'], 'Scores (hold)')}${row(['M'], 'Map')}${row(['Esc'], 'Pause')}</div>
+        <p class="note">No mouse? Play with the keyboard only: arrow keys aim, F shoots, Z zooms. Aim assist pulls your aim toward enemies near the crosshair; you can turn it off in Settings.</p>`,
+      mobile: `<h3>Touch controls</h3><div class="hkeys">${row(['Left stick'], 'Move. Push all the way to run.')}${row(['Right side'], 'Drag to look')}${row(['Fire button'], 'Shoot. Drag on it to aim while firing.')}${row(['Aim button'], 'Zoom in')}${row(['Jump button'], 'Jump')}${row(['Crouch button'], 'Crouch, or slide while running')}${row(['Reload button'], 'Reload')}${row(['Swap button'], 'Switch weapon')}${row(['Grenade button'], 'Throw a grenade')}${row(['Heal button'], 'Heal')}</div><p class="note">Hold your phone sideways. You can move the buttons, change their size and turn aim assist on or off in Settings, under Touch.</p>`,
+      modes: `<h3>Battle Royale</h3><p>You and 49 bots jump out of a plane. Press <kbd>Space</kbd> to jump, steer with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, and your parachute opens by itself. You land with nothing, so grab guns, ammo, armor and heals. Stay inside the white circle on the map: the storm outside hurts more each round. The last one standing wins.</p>
+        <h3>Gun Game</h3><p>Everyone starts with the same pistol. Each knockout gives you the next of 20 guns. A melee knockout sends the other player back one gun. Get a knockout with the knife at the end to win.</p>
+        <h3>Custom Match</h3><p>Pick the mode, map, number of bots and how hard they are. Play on your own, or make a room and send the 6 letter code or link to your friends.</p>`,
+      tips: `<h3>Tips</h3><ul class="tips"><li>Headshots do much more damage.</li><li>Zoom in with <kbd>Right Click</kbd> for accurate shots. You move slower while zoomed.</li><li>Bullets spread when you move or jump. Stop or crouch for long shots.</li><li>Fire short bursts so your gun doesn't climb.</li><li>In Gun Game and Custom matches your health comes back on its own. In Battle Royale, press <kbd>H</kbd> to heal.</li><li>The blue bar is armor. It soaks up damage before your health.</li><li>Red dots on the minimap are gunfire.</li><li>Gold crates hold better loot. Watch the sky for supply drops in Battle Royale.</li><li>Shoot red barrels to make them explode. Glass breaks too.</li></ul>`,
     };
-    return `<h2>How to Play</h2><div class="howto-hero panel"><div><h3>Interactive training</h3><p class="note">A 2-minute guided course on the beach: look, move, sprint, slide, shoot, aim, reload, loot, grenades — then take out 3 target dummies. Each step tells you exactly which key to press.</p></div><button class="btn primary big" data-act="training">▶ Start Training</button></div>
-      <div class="tabs">${[['pc', '🖱 Computer'], ['mobile', '📱 Mobile'], ['modes', '🎮 Game modes'], ['tips', '💡 Tips']].map(([k, n]) => `<button class="btn ${tab === k ? 'on' : ''}" data-act="howto-tab" data-v="${k}">${n}</button>`).join('')}</div><div class="panel howto-body">${sec[tab]}</div>`;
+    return `<h2>How to play</h2><div class="howto-hero panel"><div><h3>Training</h3><p class="note">Two minutes on the beach. Learn to look, move, run, slide, shoot, zoom, reload, pick up loot and throw grenades, then knock out 3 practice dummies. Every step shows the key to press.</p></div><button class="btn primary big" data-act="training">${icon('play')} Start training</button></div>
+      <div class="tabs">${[['pc', 'computer', 'Computer'], ['mobile', 'phone', 'Phone'], ['modes', 'pad', 'Game modes'], ['tips', 'bulb', 'Tips']].map(([k, ic, n]) => `<button class="btn ${tab === k ? 'on' : ''}" data-act="howto-tab" data-v="${k}">${icon(ic)} ${n}</button>`).join('')}</div><div class="panel howto-body">${sec[tab]}</div>`;
   }
   welcome() {
     const p = this.P; p.tutorialOffered = true; saveProfile();
     const d = document.createElement('div'); d.className = 'pause welcome';
-    d.innerHTML = `<div class="panel"><h2>Welcome, Agent!</h2><p class="note" style="font-size:1.05em">New to CLAYFRONT? Take the 2-minute training to learn the controls — ${this.app.touch ? 'the left stick moves, drag to look, and the red button shoots' : '<b>Left Click</b> shoots, <b>Right Click</b> aims, <b>WASD</b> moves'}.</p>
-      <button class="btn primary big" data-a="train">▶ Start Training</button><button class="btn" data-a="guide">Read the How to Play guide</button><button class="btn ghost" data-a="skip">Skip — I know how to play</button></div>`;
+    d.innerHTML = `<div class="panel"><h2>Welcome, Agent!</h2><p class="note" style="font-size:1.1em">New here? The training takes two minutes and shows you every control. ${this.app.touch ? 'The left stick moves, drag on the right to look, and the orange button shoots.' : 'Left click shoots, right click zooms and W A S D moves. No mouse? Arrow keys aim and F shoots.'}</p>
+      <button class="btn primary big" data-a="train">${icon('play')} Start training</button><button class="btn" data-a="guide">${icon('learn')} Read the guide</button><button class="btn ghost" data-a="skip">I already know how to play</button></div>`;
     d.querySelector('[data-a=train]').onclick = () => { audio.click(); d.remove(); this.app.startTraining(); };
     d.querySelector('[data-a=guide]').onclick = () => { audio.click(); d.remove(); this.show('howto'); };
     d.querySelector('[data-a=skip]').onclick = () => { audio.click(); d.remove(); };
@@ -240,6 +246,7 @@ export class Menu {
     const p = this.P; const v = el.dataset.v;
     switch (a) {
       case 'back': this.back(); break;
+      case 'chal-toggle': this.chalOpen = !this.chalOpen; this.show('main', false); break;
       case 'noop': break;
       case 'play-br': this.sel.map = this.sel.map || 'beach'; this.show('br'); break;
       case 'play-gg': this.show('gg'); break;
@@ -312,4 +319,4 @@ function statBars(s) {
   const dps = s.dmg * s.pellets * (s.explosive ? 0 : 1) / s.interval; const dmg = s.explosive ? 100 : s.dmg * s.pellets;
   return `<div class="sbars">${bar('Damage', dmg / 1.2)}${bar('Fire rate', s.rpm / 11)}${bar('Range', s.far / 2.6)}${bar('Accuracy', 100 - s.spreadAds * 1400 - s.recoilV * 700)}${bar('Mobility', (s.move - 0.8) * 350)}${bar('Handling', 100 - s.adsTime * 200)}</div>`;
 }
-function copy(text, el) { (navigator.clipboard?.writeText(text) || Promise.reject()).then(() => { el.textContent = 'Copied ✓'; }).catch(() => { const i = document.createElement('textarea'); i.value = text; document.body.append(i); i.select(); try { document.execCommand('copy'); el.textContent = 'Copied ✓'; } catch (e) { el.textContent = 'Copy failed'; } i.remove(); }); }
+function copy(text, el) { (navigator.clipboard?.writeText(text) || Promise.reject()).then(() => { el.textContent = 'Copied'; }).catch(() => { const i = document.createElement('textarea'); i.value = text; document.body.append(i); i.select(); try { document.execCommand('copy'); el.textContent = 'Copied'; } catch (e) { el.textContent = 'Copy failed'; } i.remove(); }); }

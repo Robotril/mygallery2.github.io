@@ -162,13 +162,13 @@ export const TACTICALS = [
   { id: 'stun', name: 'Stun Charge', desc: 'Dazes and slows enemies in range.', color: '#ffd166' },
 ];
 export const PERKS = [
-  { id: 'lightweight', name: 'Lightweight', desc: '+8% movement speed.', icon: '🪶' },
-  { id: 'quickhands', name: 'Quick Hands', desc: '-25% reload and swap time.', icon: '✋' },
-  { id: 'steady', name: 'Steady Aim', desc: '-30% hip-fire spread.', icon: '🎯' },
-  { id: 'tough', name: 'Tough Clay', desc: '+25 starting armor; faster health regen.', icon: '🛡️' },
-  { id: 'scavenger', name: 'Scavenger', desc: 'Eliminations refill ammo.', icon: '🎒' },
-  { id: 'quiet', name: 'Quiet Step', desc: 'Silent footsteps; bots hear you 60% less.', icon: '👟' },
-  { id: 'hardline', name: 'Deep Pockets', desc: '+1 lethal and +1 tactical.', icon: '💣' },
+  { id: 'lightweight', name: 'Lightweight', desc: '+8% movement speed.', icon: 'jump' },
+  { id: 'quickhands', name: 'Quick Hands', desc: '-25% reload and swap time.', icon: 'reload' },
+  { id: 'steady', name: 'Steady Aim', desc: '-30% hip-fire spread.', icon: 'aim' },
+  { id: 'tough', name: 'Tough Clay', desc: '+25 starting armor; faster health regen.', icon: 'shield' },
+  { id: 'scavenger', name: 'Scavenger', desc: 'Eliminations refill ammo.', icon: 'ammo' },
+  { id: 'quiet', name: 'Quiet Step', desc: 'Silent footsteps; bots hear you 60% less.', icon: 'person' },
+  { id: 'hardline', name: 'Deep Pockets', desc: '+1 lethal and +1 tactical.', icon: 'grenade' },
 ];
 export const GEAR = [
   { id: 'medkit', name: 'Field Medkit', desc: 'Press H: heal 60 HP (once per life, recharges 45s).', cooldown: 45 },

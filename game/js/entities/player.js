@@ -29,16 +29,19 @@ export class PlayerController {
     const zoom = c.weapon ? 1 + (c.weapon.stats.adsFov - 1) * c.fire.ads : 1;
     let sens = 0.0022 * (inp.sens || 1) * (c.fire.ads > 0.5 ? s.adsSensitivity / Math.sqrt(zoom) : 1);
     if (inp.touch) sens *= 0.55;
-    if (this.assistTarget && inp.touch && s.aimAssist) sens *= 0.6;
+    const assistOn = inp.touch ? s.aimAssist : s.pcAimAssist !== false;
+    if (this.assistTarget && assistOn) sens *= inp.touch ? 0.6 : 0.8;
     if (c.stun > 0) sens *= 0.5;
     c.yaw -= inp.lookX * sens; c.pitch -= inp.lookY * sens * (s.invertY ? -1 : 1);
+    // keyboard aiming (arrow keys): speeds up while held, slower when zoomed
+    if (inp.keyYaw || inp.keyPitch) { this.keyAimT = Math.min(1, (this.keyAimT || 0) + dt * 2.5); const rate = (1.2 + this.keyAimT * 1.6) * (inp.sens || 1) / Math.sqrt(zoom); c.yaw -= inp.keyYaw * rate * dt; c.pitch += inp.keyPitch * rate * 0.7 * dt * (s.invertY ? -1 : 1); } else this.keyAimT = 0;
     c.pitch = clamp(c.pitch, -1.5, 1.5);
 
     if (m.ended && this.winnerId != null) { this.victoryCam(dt); this.vm.group.visible = false; return; }
     if (!c.alive) { this.deadCam(dt); this.vm.group.visible = false; return; }
     if (c.dropping) { this.dropUpdate(dt, inp); this.vm.group.visible = false; this.camera(dt, 0); return; }
     this.vm.group.visible = true;
-    if (inp.touch && s.aimAssist) this.aimAssist(dt, inp);
+    if (assistOn) this.aimAssist(dt, inp, inp.touch || inp.keyYaw || inp.keyPitch ? 1 : 0.55);
 
     // ---- movement ----
     const w = c.weapon; const ws = w ? w.stats : null;
@@ -52,7 +55,9 @@ export class PlayerController {
     c.crouchT = damp(c.crouchT, c.crouching ? 1 : 0, 14, dt);
     const fwdIn = inp.my, sideIn = inp.mx; const inLen = Math.min(1, Math.hypot(fwdIn, sideIn));
     const reloading = c.fire.reload > 0;
-    c.sprinting = inp.sprint && fwdIn > 0.3 && !c.crouching && c.fire.ads < 0.3 && !(inp.fire && ws && ws.mode !== 'melee') && !c.channel;
+    // auto-sprint: keep moving forward for a moment and you start running (Shift still works)
+    this.fwdHold = fwdIn > 0.6 && !inp.fire && c.fire.ads < 0.3 ? (this.fwdHold || 0) + dt : 0;
+    c.sprinting = (inp.sprint || (s.autoSprint !== false && this.fwdHold > 0.45)) && fwdIn > 0.3 && !c.crouching && c.fire.ads < 0.3 && !(inp.fire && ws && ws.mode !== 'melee') && !c.channel;
     if (c.sprinting && c.crouching && !c.sliding) c.crouching = false;
     let speed = WALK * (ws ? ws.move : 1) * (c.perks.has('lightweight') ? 1.08 : 1);
     if (c.sprinting) speed *= SPRINT_MUL; if (c.crouching) speed *= CROUCH_MUL; speed *= 1 - c.fire.ads * (1 - ADS_MUL);
@@ -70,9 +75,14 @@ export class PlayerController {
     // ---- actions ----
     this.updateWeapon(dt, inp, s);
     // interact prompt + use
-    this.prompt = ''; this.dropHint = ''; const crate = m.loot.nearestCrate(c.pos.x, c.eyeY, c.pos.z);
+    this.prompt = ''; this.dropHint = ''; this.promptManual = false; const crate = m.loot.nearestCrate(c.pos.x, c.eyeY, c.pos.z);
+    // walk-over pickup: anything useful is grabbed automatically; only swaps and crates need a key
+    this.autoT = (this.autoT || 0) - dt; if (s.autoPickup !== false && this.autoT <= 0) { this.autoT = 0.15; m.autoPickup(c); }
     const item = crate ? null : m.loot.nearest(c.pos.x, c.pos.y + 0.6, c.pos.z, 2.6, -sy, -cy);
-    if (crate) this.prompt = 'Open Supply Crate'; else if (item) this.prompt = 'Pick up ' + (this.m.itemLabel ? this.m.itemLabel(item) : 'item');
+    const label = item ? (this.m.itemLabel ? this.m.itemLabel(item) : 'item') : '';
+    if (crate) this.prompt = 'open the supply crate';
+    else if (item && (s.autoPickup === false || !m.wouldTake(c, item))) { this.promptManual = true; this.prompt = item.type === 'weapon' ? 'swap for ' + label : 'pick up ' + label; }
+    if (inp.touch && this.prompt && !crate) this.prompt = 'Tap the hand button to ' + this.prompt; else if (inp.touch && crate) this.prompt = 'Tap the hand button to open the supply crate';
     this.promptItem = item; this.promptCrate = crate;
     if (inp.interact && (crate || item)) m.tryInteract(c);
     if (inp.heal) {
@@ -167,7 +177,7 @@ export class PlayerController {
     if (performance.now() / 1000 - f.lastShot > 0.12 && this.recovered > 0) { const k = this.recovered * (1 - Math.exp(-dt * 6)) * 0.85; c.pitch -= k; this.recovered -= k / 0.85; if (this.recovered < 0.0005) this.recovered = 0; }
   }
 
-  aimAssist(dt, inp) {
+  aimAssist(dt, inp, strength = 1) {
     const c = this.c, m = this.m; this.assistCheck -= dt;
     if (this.assistCheck <= 0) {
       this.assistCheck = 0.1; this.assistTarget = null; let best = 0.11;
@@ -178,9 +188,9 @@ export class PlayerController {
       }
     }
     const t = this.assistTarget; if (!t || !t.alive) return;
-    if (!(inp.fire || c.fire.ads > 0.5 || Math.hypot(inp.mx, inp.my) > 0.2)) return;
+    if (!(inp.fire || c.fire.ads > 0.5 || Math.hypot(inp.mx, inp.my) > 0.2 || inp.keyYaw || inp.keyPitch)) return;
     const dx = t.pos.x - c.pos.x, dz = t.pos.z - c.pos.z, dy = t.pos.y + 1.25 - c.eyeY; const ty = Math.atan2(-dx, -dz), tp = Math.atan2(dy, Math.hypot(dx, dz));
-    const k = 1 - Math.exp(-dt * (c.fire.ads > 0.5 ? 6 : 3)); c.yaw += angleDiff(c.yaw, ty) * k * 0.5; c.pitch += (tp - c.pitch) * k * 0.35;
+    const k = (1 - Math.exp(-dt * (c.fire.ads > 0.5 ? 6 : 3))) * strength; c.yaw += angleDiff(c.yaw, ty) * k * 0.5; c.pitch += (tp - c.pitch) * k * 0.35;
   }
 
   dropUpdate(dt, inp) {

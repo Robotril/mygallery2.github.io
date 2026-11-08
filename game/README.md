@@ -27,9 +27,15 @@ On first launch a welcome popup offers the **2-minute interactive training**, wh
 
 ## Controls
 
-**PC:** **Left Click shoots** (the first click also captures the mouse; if the browser refuses the capture, the game falls back to free mouse-look) · WASD move · Mouse look · RMB aim · R reload · Space jump · Shift sprint · Ctrl or C crouch (slide while sprinting) · E/F interact · 1/2/wheel switch weapon · G lethal · Q tactical · V melee · H heal · X field gear · I inspect · Tab scoreboard · M map · Esc pause. (Some browsers won't let a page capture Ctrl+W; the game enters fullscreen with keyboard lock where supported, and C always works.)
+**PC:** **Left Click shoots** (the first click also captures the mouse; if the browser refuses, the game falls back to free mouse-look) · WASD move · Mouse look · Right Click zoom · R reload · Space jump · Ctrl or C crouch (slide while running) · E open crates and swap guns · 1/2/wheel switch weapon · G grenade · Q tactical · V melee · H heal · X field gear · Tab scoreboard · M map · Esc pause.
+
+**Playing with only a keyboard:** the arrow keys aim (they speed up the longer you hold them), F shoots and Z zooms. Running is automatic once you've held W for a moment, gentle aim assist helps on PC, and you pick up guns, ammo, heals and armor just by walking over them. A one-line key reminder shows for the first 45 seconds of a match. Each of these can be switched off in **Settings → Controls**, which also has toggle-to-zoom. Text size is under **Settings → Graphics** (Auto fits your screen; Bigger, Much bigger and Huge go further).
 
 **Mobile (landscape):** floating left stick (push fully forward to sprint), drag the right side to look, drag on the fire button to aim while shooting, plus buttons for aim, jump, crouch/slide, reload, swap, grenade, tactical, interact, heal, gear, melee, scoreboard, pause and map. Button positions, size and sensitivity are adjustable under **Settings → Touch**, and aim assist is optional.
+
+## Look and feel
+
+The menus and HUD use a "Plasticine Tray" style: every panel, button and HUD box is a bright slab of modeling clay with a fine grain, sitting over the live 3D scene. Each mode has its own color (Battle Royale tangerine, Gun Game teal, Custom sky, How to play sun), text is navy on light clay, fonts are Baloo 2 and Nunito (self-hosted in `fonts/`, OFL), and all icons are one hand-drawn SVG set in `js/ui/icons.js`. Slabs drop in and settle, buttons squash when pressed, and both are switched off when the system asks for reduced motion. The design rules are written up in `DESIGN.md` at the repository root.
 
 ## Multiplayer
 

@@ -1,4 +1,4 @@
-// CLAYFRONT — app bootstrap, state machine (menu → loading → match → results) and main loop.
+// CLAYFRONT: app bootstrap, state machine (menu → loading → match → results) and main loop.
 import * as THREE from 'three';
 import { loadProfile, getProfile, saveProfile, recordMatch, levelInfo } from './core/save.js';
 import { Graphics, PRESETS, PRESET_ORDER } from './engine/graphics.js';
@@ -36,6 +36,7 @@ class App {
     addEventListener('resize', () => this.checkOrientation()); this.checkOrientation();
     document.body.classList.toggle('is-touch', this.touch);
     this.applyUiScale(); addEventListener('resize', () => this.applyUiScale());
+    makeClayGrain();
   }
 
   async boot() {
@@ -59,11 +60,13 @@ class App {
   }
   // Interface/text size. Auto = larger on desktop screens so text is comfortable to read.
   applyUiScale() {
-    const v = getProfile().settings.uiScale || 'auto';
-    let z = Number(v);
-    if (!z) z = this.touch ? 1 : innerWidth >= 1800 ? 1.4 : innerWidth >= 1440 ? 1.3 : innerWidth >= 1200 ? 1.22 : innerWidth >= 900 ? 1.12 : 1;
-    if (innerHeight < 560) z = Math.min(z, 1); // short landscape phones
-    document.documentElement.style.setProperty('--uiz', z.toFixed(2)); this.uiZoom = z;
+    // The interface is designed on a 1280x760 canvas and scaled to the real screen, so a big monitor gets big text too.
+    const v = getProfile().settings.uiScale; const mul = Number(v) > 0 && Number(v) < 2 ? Number(v) : 1;
+    const fit = Math.min(innerWidth / 1280, innerHeight / 760);
+    let z = this.touch ? Math.max(1, Math.min(1.5, fit)) : Math.max(1, Math.min(3.2, fit * 1.12));
+    if (innerHeight < 560) z = Math.min(z, 1); // short landscape phones keep their own compact layout
+    z *= mul;
+    document.documentElement.style.setProperty('--uiz', z.toFixed(3)); this.uiZoom = z;
   }
   startTraining() { this.startMatch({ mode: 'training', map: 'beach', bots: 3, difficulty: 'easy' }); }
   showcaseMode(m) { this.showcase?.setMode(m); }
@@ -114,7 +117,7 @@ class App {
     this.input.enabled = true;
     if (this.touch) {
       const t = document.getElementById('touch'); t.classList.remove('hidden'); this.input.setupTouch(t); this.input.setButtonVisible('fire2', true);
-      if (s.mode === 'training') { const b = document.createElement('div'); b.className = 'tbtn tb-skip'; b.textContent = 'Skip ▸'; b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.input.pressed.add('skip'); }, { passive: false }); t.append(b); }
+      if (s.mode === 'training') { const b = document.createElement('div'); b.className = 'tbtn tb-skip'; b.textContent = 'Skip'; b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.input.pressed.add('skip'); }, { passive: false }); t.append(b); }
     }
     else this.input.requestLock();
     audio.startAmbience(match.map.env.ambience);
@@ -160,7 +163,7 @@ class App {
     const br = res.mode === 'br'; const mins = (performance.now() - this.matchStart) / 60000;
     if (res.mode === 'training') return this.finishTraining(res, L, mins);
     const xpLines = [['Match completed', 200], ['Eliminations', st.kills * 100], ['Headshots', st.headshots * 25], ['Assists', st.assists * 25]];
-    if (res.won) xpLines.push([br ? 'Victory Royale' : 'Victory', br ? 1500 : 1000]);
+    if (res.won) xpLines.push([br ? 'Last one standing' : 'Win', br ? 1500 : 1000]);
     if (br && L.place) xpLines.push([`Placement #${L.place}`, Math.max(0, 51 - L.place) * 15]);
     xpLines.push(['Time played', Math.round(mins * 40)]);
     const lines = xpLines.filter((l) => l[1] > 0); const xp = lines.reduce((a, l) => a + l[1], 0);
@@ -176,7 +179,7 @@ class App {
     p.xp += xp; if (done) p.tutorialDone = true; saveProfile(true);
     const summary = { xp, challengeXp: 0, challengesDone: [], achievements: [], levelBefore: before, levelAfter: levelInfo(p.xp).level };
     if (summary.levelAfter > before) audio.levelUp();
-    this.lastResults = { res: { ...res, reason: done ? 'Training complete — you are ready for combat!' : 'Training ended early' }, summary, xpLines: xp ? [['Training completed', xp]] : [], me: { id: L.id, kills: L.stats.kills, deaths: L.stats.deaths, assists: 0, headshots: L.stats.headshots, damage: L.stats.damage, shots: L.stats.shots, hits: L.stats.hits, place: 0, score: L.stats.score, time: mins * 60 } };
+    this.lastResults = { res: { ...res, reason: done ? 'Training complete. You are ready to play!' : 'Training ended early' }, summary, xpLines: xp ? [['Training completed', xp]] : [], me: { id: L.id, kills: L.stats.kills, deaths: L.stats.deaths, assists: 0, headshots: L.stats.headshots, damage: L.stats.damage, shots: L.stats.shots, hits: L.stats.hits, place: 0, score: L.stats.score, time: mins * 60 } };
     this.lastPlayed = { settings: { mode: 'training', map: 'beach' }, role: 'solo' };
     this.teardownMatch(); this.menu.stack = []; this.menu.show('results', false);
   }
@@ -244,6 +247,17 @@ class App {
       this.showcase.update(dt); this.showcase.render();
     }
   }
+}
+
+// Fine thumbprint grain for every clay surface: a small tile painted once and shared through a CSS variable.
+function makeClayGrain() {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 160; const x = c.getContext('2d');
+    for (let i = 0; i < 900; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(29,34,66,0.05)'; x.beginPath(); x.arc(Math.random() * 160, Math.random() * 160, 0.6 + Math.random() * 1.6, 0, 7); x.fill(); }
+    x.lineWidth = 1.2;
+    for (let k = 0; k < 5; k++) { const cx = Math.random() * 160, cy = Math.random() * 160; for (let r = 4; r < 22; r += 3.2) { x.strokeStyle = 'rgba(29,34,66,0.035)'; x.beginPath(); x.ellipse(cx, cy, r, r * 0.72, k, 0, 7); x.stroke(); } }
+    document.documentElement.style.setProperty('--grain', `url(${c.toDataURL('image/png')})`);
+  } catch (e) { /* plain color fallback */ }
 }
 
 const app = new App(); window.CLAYFRONT = app;

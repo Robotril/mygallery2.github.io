@@ -5,20 +5,20 @@ import { audio } from '../engine/audio.js';
 const k = (s) => `<kbd>${s}</kbd>`;
 // Each step: title, PC text, touch text, check(t, L, m) -> true when complete.
 export const STEPS = [
-  { title: 'Look around', pc: `Move the ${k('Mouse')} to look around.`, touch: 'Drag on the right half of the screen to look around.', check: (t) => t.look > 2.5 },
-  { title: 'Move', pc: `Walk with ${k('W')} ${k('A')} ${k('S')} ${k('D')}.`, touch: 'Use the left thumb stick to walk.', check: (t) => t.dist > 7 },
-  { title: 'Sprint', pc: `Hold ${k('Shift')} while moving forward to sprint.`, touch: 'Push the stick all the way forward to sprint.', check: (t) => t.sprint > 1.2 },
-  { title: 'Jump', pc: `Press ${k('Space')} to jump.`, touch: 'Tap the ⤒ button to jump.', check: (t) => t.jumps > 0 },
-  { title: 'Crouch', pc: `Press ${k('C')} or ${k('Ctrl')} to crouch. Press it again to stand.`, touch: 'Tap the ⤓ button to crouch.', check: (t) => t.crouched },
-  { title: 'Slide', pc: `Sprint (${k('Shift')} + ${k('W')}) then press ${k('C')} to slide.`, touch: 'Sprint, then tap ⤓ to slide.', check: (t) => t.slid },
-  { title: 'Shoot', pc: `${k('Left Click')} to shoot. Hit one of the target dummies.`, touch: 'Hold the red 🔫 button to shoot. Hit a target dummy.', check: (t, L) => L.stats.hits >= 1 },
-  { title: 'Aim down sights', pc: `Hold ${k('Right Click')} to aim, then ${k('Left Click')} to fire an accurate shot.`, touch: 'Tap ◎ to aim, then shoot.', check: (t) => t.adsShot },
-  { title: 'Reload', pc: `Press ${k('R')} to reload.`, touch: 'Tap ⟳ to reload.', check: (t) => t.reloaded },
-  { title: 'Switch weapons', pc: `Press ${k('1')} / ${k('2')} or scroll the ${k('Mouse Wheel')} to swap weapons.`, touch: 'Tap ⇄ to swap weapons.', check: (t) => t.swapped },
-  { title: 'Pick up loot', pc: `Walk to the glowing shotgun on the sand and press ${k('E')}.`, touch: 'Walk to the glowing shotgun and tap ✋.', check: (t) => t.looted },
-  { title: 'Grenade', pc: `Press ${k('G')} to throw a grenade at the dummies.`, touch: 'Tap 💣 to throw a grenade.', check: (t) => t.threw },
-  { title: 'Melee', pc: `Press ${k('V')} for a quick melee strike.`, touch: 'Tap 🔪 for a melee strike.', check: (t) => t.meleed },
-  { title: 'Final test', pc: 'Eliminate 3 target dummies. Aim for the head for bonus damage!', touch: 'Eliminate 3 target dummies. Aim for the head!', check: (t, L) => L.stats.kills >= 3 },
+  { title: 'Look around', pc: `Move the ${k('Mouse')} or press the ${k('Arrow keys')} to look around.`, touch: 'Drag on the right side of the screen to look around.', check: (t) => t.look > 2.5 },
+  { title: 'Walk', pc: `Walk with ${k('W')} ${k('A')} ${k('S')} ${k('D')}.`, touch: 'Push the left stick to walk.', check: (t) => t.dist > 7 },
+  { title: 'Run', pc: `Keep holding ${k('W')}. After a moment you start running on your own.`, touch: 'Push the stick all the way forward to run.', check: (t) => t.sprint > 1.2 },
+  { title: 'Jump', pc: `Press ${k('Space')} to jump.`, touch: 'Tap the jump button.', check: (t) => t.jumps > 0 },
+  { title: 'Crouch', pc: `Press ${k('C')} to crouch. Press it again to stand up.`, touch: 'Tap the crouch button.', check: (t) => t.crouched },
+  { title: 'Slide', pc: `While you are running, press ${k('C')} to slide.`, touch: 'Run, then tap the crouch button to slide.', check: (t) => t.slid },
+  { title: 'Shoot', pc: `${k('Left Click')} or press ${k('F')} to shoot a practice dummy.`, touch: 'Hold the orange fire button. Hit a practice dummy.', check: (t, L) => L.stats.hits >= 1 },
+  { title: 'Zoom in', pc: `Hold ${k('Right Click')} or ${k('Z')} to zoom, then shoot. Zoomed shots are more accurate.`, touch: 'Tap the aim button to zoom, then shoot.', check: (t) => t.adsShot },
+  { title: 'Reload', pc: `Press ${k('R')} to reload.`, touch: 'Tap the reload button.', check: (t) => t.reloaded },
+  { title: 'Switch weapons', pc: `Press ${k('1')} or ${k('2')}, or scroll the mouse wheel.`, touch: 'Tap the swap button.', check: (t) => t.swapped },
+  { title: 'Pick up loot', pc: 'Walk over the glowing shotgun on the sand. You pick it up by touching it.', touch: 'Walk over the glowing shotgun to pick it up.', check: (t) => t.looted },
+  { title: 'Grenade', pc: `Press ${k('G')} to throw a grenade at the dummies.`, touch: 'Tap the grenade button.', check: (t) => t.threw },
+  { title: 'Melee', pc: `Press ${k('V')} to swing your knife.`, touch: 'Tap the knife button.', check: (t) => t.meleed },
+  { title: 'Final test', pc: 'Knock out 3 practice dummies. Headshots count for more!', touch: 'Knock out 3 practice dummies. Headshots count for more!', check: (t, L) => L.stats.kills >= 3 },
 ];
 
 export class TrainingMode extends DeathmatchMode {
@@ -62,8 +62,8 @@ export class TrainingMode extends DeathmatchMode {
     const S = STEPS[this.step]; if (!S) return;
     if (S.check(t, L, m) || inp.skip) {
       this.step++; this.flash = 0.6; audio.levelUp();
-      if (this.step >= STEPS.length) { this.finish(L, 'Training complete — you are ready for combat!'); return; }
-      m.events.emit('notify', { text: `✓ ${S.title} complete`, kind: 'level' });
+      if (this.step >= STEPS.length) { this.finish(L, 'Training complete. You are ready to play!'); return; }
+      m.events.emit('notify', { text: `${S.title}: done!`, kind: 'level' });
       if (STEPS[this.step].title === 'Final test') L.stats.kills = 0;
     }
   }

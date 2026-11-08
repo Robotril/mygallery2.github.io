@@ -5,6 +5,7 @@ import { HEALS, itemLabel } from '../game/loot.js';
 import { formatTime, clamp } from '../core/util.js';
 import { getProfile } from '../core/save.js';
 import { currentSpread } from '../entities/weaponLogic.js';
+import { icon } from './icons.js';
 
 const V = new THREE.Vector3();
 const h = (tag, cls, html = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
@@ -38,7 +39,8 @@ export class HUD {
       <div class="bigmap hidden"><canvas></canvas><div class="bm-legend"></div></div>
       <div class="spec hidden"></div>
       <div class="clickplay hidden">Click to play<small>Left Click shoots · Right Click aims · Esc pauses</small></div>
-      <div class="tutorial hidden"></div>`;
+      <div class="tutorial hidden"></div>
+      <div class="keyhint hidden"></div>`;
     const q = (s) => root.querySelector(s); this.q = q;
     this.el = { xh: q('.xhair'), hit: q('.hitmark'), dmgV: q('.vignette.dmg'), lowV: q('.vignette.low'), zoneV: q('.vignette.zone'), flash: q('.flashbang'), scope: q('.scope'), dirs: q('.dmgdirs'), compass: q('.compass-strip'), mini: q('.minimap canvas'), mode: q('.modebox'), feed: q('.killfeed'), medals: q('.medals'), notify: q('.notify'), prompt: q('.prompt'), ch: q('.channel'), name: q('.v-name'), armor: q('.bar.armor'), hp: q('.bar.hp'), inv: q('.inv'), wname: q('.w-name'), mag: q('.mag'), res: q('.res'), slots: q('.w-slots'), equip: q('.w-equip'), gg: q('.ggbar'), cd: q('.countdown'), fps: q('.fps'), death: q('.death'), scores: q('.scores'), big: q('.bigmap'), bigC: q('.bigmap canvas'), spec: q('.spec'), overlay: q('.hud-overlay') };
     this.ctx = this.el.mini.getContext('2d'); this.octx = this.el.overlay.getContext('2d');
@@ -63,7 +65,7 @@ export class HUD {
 
   buildCompass() {
     const s = this.el.compass; const marks = [];
-    for (let k = -1; k <= 1; k++) for (let d = 0; d < 360; d += 15) { const lbl = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }[d]; marks.push(`<span style="left:${(d + k * 360) * 4}px" class="${lbl ? 'card' : ''}">${lbl || d}</span>`); }
+    for (let k = -1; k <= 1; k++) for (let d = 0; d < 360; d += 15) { const lbl = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }[d]; marks.push(`<span style="left:${(d + k * 360) * 4}px" class="${lbl ? 'cd' : ''}">${lbl || d}</span>`); }
     s.innerHTML = marks.join('');
   }
   buildMapImage() {
@@ -93,7 +95,7 @@ export class HUD {
   addFeed(e) {
     const wn = WEAPON_MAP[e.weapon]?.name || (e.weapon === 'zone' ? 'the storm' : e.weapon === 'fall' ? 'gravity' : e.explosive ? 'explosive' : '');
     const L = this.m.local; const mine = L && (e.killerId === L.id || e.victimId === L.id);
-    const d = h('div', 'kf' + (mine ? ' mine' : ''), `${e.killer ? `<b>${esc(e.killer)}</b>${e.kBot ? '<i class="bot">BOT</i>' : ''}` : ''} <span class="kf-w">${e.head ? '🎯 ' : ''}${esc(wn)}</span> <b class="v">${esc(e.victim)}</b>${e.vBot ? '<i class="bot">BOT</i>' : ''}`);
+    const d = h('div', 'kf' + (mine ? ' mine' : ''), `${e.killer ? `<b>${esc(e.killer)}</b>${e.kBot ? '<i class="bot">BOT</i>' : ''}` : ''} <span class="kf-w">${e.head ? icon('aim', 'hs') + ' ' : ''}${esc(wn)}</span> <b class="v">${esc(e.victim)}</b>${e.vBot ? '<i class="bot">BOT</i>' : ''}`);
     this.el.feed.prepend(d); while (this.el.feed.children.length > 6) this.el.feed.lastChild.remove(); setTimeout(() => d.classList.add('fade'), 5000); setTimeout(() => d.remove(), 5600);
   }
   medal(e) {
@@ -108,12 +110,12 @@ export class HUD {
     const m = this.m; const br = m.mode.id === 'br'; const k = e.killer;
     this.deathShown = true; const el = this.el.death; el.classList.remove('hidden');
     const place = br ? `<div class="place">#${m.local.place || m.mode.state.alive + 1}<small> / ${m.mode.state.total || m.combatants.length}</small></div>` : '';
-    el.innerHTML = `<div class="d-title">ELIMINATED</div>${place}<div class="d-by">${k ? `by <b>${esc(k.name)}</b>${k.isBot ? ' <i class="bot">BOT</i>' : ''}${WEAPON_MAP[e.weapon] ? ` with ${esc(WEAPON_MAP[e.weapon].name)}` : ''}` : e.weapon === 'zone' ? 'by the storm' : ''}</div>
-      ${br ? `<div class="d-btns"><button class="btn" data-a="spectate">Spectate</button><button class="btn primary" data-a="leave">Leave Match</button></div>` : `<div class="d-timer">Respawning…</div>`}`;
+    el.innerHTML = `<div class="death-card"><div class="d-title">Knocked out</div>${place}<div class="d-by">${k ? `by <b>${esc(k.name)}</b>${k.isBot ? ' <i class="bot">BOT</i>' : ''}${WEAPON_MAP[e.weapon] ? ` with the ${esc(WEAPON_MAP[e.weapon].name)}` : ''}` : e.weapon === 'zone' ? 'by the storm' : ''}</div>
+      ${br ? `<div class="d-btns"><button class="btn" data-a="spectate">Watch the others</button><button class="btn primary" data-a="leave">Leave match</button></div>` : `<div class="d-timer">Back in a moment…</div>`}</div>`;
     el.querySelectorAll('button').forEach((b) => b.onclick = () => this.H.onDeathAction(b.dataset.a));
   }
   hideDeath() { this.deathShown = false; this.el.death.classList.add('hidden'); this.el.spec.classList.add('hidden'); }
-  setSpectating(c) { const s = this.el.spec; if (!c) { s.classList.add('hidden'); return; } this.el.death.classList.add('hidden'); s.classList.remove('hidden'); s.innerHTML = `Spectating <b>${esc(c.name)}</b>${c.isBot ? ' <i class="bot">BOT</i>' : ''} <button class="btn small" data-a="next">Next ▸</button><button class="btn small primary" data-a="leave">Leave</button>`; s.querySelectorAll('button').forEach((b) => b.onclick = () => this.H.onDeathAction(b.dataset.a)); }
+  setSpectating(c) { const s = this.el.spec; if (!c) { s.classList.add('hidden'); return; } this.el.death.classList.add('hidden'); s.classList.remove('hidden'); s.innerHTML = `Spectating <b>${esc(c.name)}</b>${c.isBot ? ' <i class="bot">BOT</i>' : ''} <button class="btn small" data-a="next">Next ${icon('next')}</button><button class="btn small primary" data-a="leave">Leave</button>`; s.querySelectorAll('button').forEach((b) => b.onclick = () => this.H.onDeathAction(b.dataset.a)); }
 
   update(dt, inp) {
     const m = this.m, L = m.local, E = this.el; if (!L) return;
@@ -137,22 +139,22 @@ export class HUD {
     E.name.textContent = L.name;
     E.hp.querySelector('i').style.width = clamp(L.hp, 0, 100) + '%'; E.hp.querySelector('span').textContent = Math.ceil(L.hp);
     E.armor.style.display = L.armor > 0 || m.mode.usePool ? '' : 'none'; E.armor.querySelector('i').style.width = clamp(L.armor, 0, 100) + '%'; E.armor.querySelector('span').textContent = Math.ceil(L.armor);
-    E.inv.innerHTML = m.mode.usePool ? Object.entries(L.heals).map(([k, n]) => `<span class="${n ? '' : 'dim'}">${k === 'cell' ? '🛡' : k === 'medkit' ? '✚' : '🩹'} ${n}</span>`).join('') + Object.entries(L.ammo).filter(([, n]) => n > 0).map(([k, n]) => `<span class="am am-${k}">${n}</span>`).join('') : '';
+    E.inv.innerHTML = m.mode.usePool ? Object.entries(L.heals).map(([k, n]) => `<span class="${n ? '' : 'dim'}" title="${k === 'cell' ? 'Shield cells' : k === 'medkit' ? 'Medkits' : 'Bandages'}">${icon(k === 'cell' ? 'shield' : k === 'medkit' ? 'heal' : 'bandage')} ${n}</span>`).join('') + Object.entries(L.ammo).filter(([, n]) => n > 0).map(([k, n]) => `<span class="am am-${k}">${n}</span>`).join('') : '';
     // weapon
-    if (w) { E.wname.innerHTML = `<span style="color:${RARITY[w.rarity].color}">${esc(WEAPON_MAP[w.id].name)}</span>`; const res = L.reserveFor(w); E.mag.textContent = w.stats.ammo ? w.mag : '∞'; E.mag.classList.toggle('low', w.stats.ammo && w.mag <= Math.ceil(w.stats.mag * 0.25)); E.res.textContent = w.stats.ammo ? (res === Infinity || res > 9000 ? ' / ∞' : ' / ' + res) : ''; }
-    else { E.wname.textContent = 'Fists'; E.mag.textContent = '—'; E.res.textContent = ''; }
-    E.slots.innerHTML = L.slots.map((sw, i) => `<span class="${i === L.slot ? 'on' : ''}">${i + 1} ${sw ? esc(WEAPON_MAP[sw.id].name.split(' ')[0]) : '—'}</span>`).join('');
+    if (w) { E.wname.innerHTML = `<i class="rar" style="background:${RARITY[w.rarity].color}" title="${RARITY[w.rarity].name}"></i>${esc(WEAPON_MAP[w.id].name)}`; const res = L.reserveFor(w); E.mag.textContent = w.stats.ammo ? w.mag : '∞'; E.mag.classList.toggle('low', w.stats.ammo && w.mag <= Math.ceil(w.stats.mag * 0.25)); E.res.textContent = w.stats.ammo ? (res === Infinity || res > 9000 ? ' / ∞' : ' / ' + res) : ''; }
+    else { E.wname.textContent = 'Fists'; E.mag.textContent = '0'; E.res.textContent = ' find a gun!'; }
+    E.slots.innerHTML = L.slots.map((sw, i) => `<span class="${i === L.slot ? 'on' : ''}">${i + 1} ${sw ? esc(WEAPON_MAP[sw.id].name.split(' ')[0]) : 'empty'}</span>`).join('');
     const gear = GEAR.find((g) => g.id === L.gear);
-    E.equip.innerHTML = `<span title="Lethal (G)">💣 ${L.lethal.n}</span><span title="Tactical (Q)">☁ ${L.tactical.n}</span>${gear && gear.cooldown ? `<span title="${esc(gear.name)}">${gear.id === 'pulse' ? '◉' : '✚'} ${L.gearCd > 0 ? Math.ceil(L.gearCd) + 's' : 'READY'}</span>` : ''}`;
-    if (L.fire.reload > 0 && w) { E.res.textContent += ' · RELOADING'; }
+    E.equip.innerHTML = `<span title="Grenades (G)">${icon('grenade')} ${L.lethal.n}</span><span title="Smoke or stun (Q)">${icon('smoke')} ${L.tactical.n}</span>${gear && gear.cooldown ? `<span title="${esc(gear.name)}">${icon(gear.id === 'pulse' ? 'radar' : 'heal')} ${L.gearCd > 0 ? Math.ceil(L.gearCd) + 's' : 'ready'}</span>` : ''}`;
+    if (L.fire.reload > 0 && w) { E.res.textContent += ' reloading'; }
     // prompt + channel
-    const pr = ctrl?.prompt || ''; const dh = ctrl?.dropHint || ''; E.prompt.textContent = pr ? (this.H.touch ? '✋ ' : '[E] ') + pr : dh ? (this.H.touch ? dh.replace('Press JUMP', 'Tap ⤒') : dh.replace('JUMP', 'SPACE')) : ''; E.prompt.style.opacity = pr || dh ? 1 : 0;
-    if (pr && ctrl.promptItem) E.prompt.style.color = ctrl.promptItem.type === 'weapon' ? RARITY[ctrl.promptItem.rarity].color : ''; else E.prompt.style.color = '';
+    const pr = ctrl?.prompt || ''; const dh = ctrl?.dropHint || ''; E.prompt.textContent = pr ? (this.H.touch || !this.promptNeedsKey(ctrl) ? pr : 'Press E to ' + pr) : dh ? (this.H.touch ? dh.replace('Press JUMP', 'Tap the jump button') : dh.replace('JUMP', 'Space')) : ''; E.prompt.style.opacity = pr || dh ? 1 : 0;
+    E.prompt.style.color = '';
     if (L.channel) { E.ch.classList.add('on'); E.ch.querySelector('.ch-label').textContent = 'Using ' + HEALS[L.channel.kind].name; E.ch.querySelector('i').style.width = (L.channel.t / L.channel.dur * 100) + '%'; } else E.ch.classList.remove('on');
     // mode box
-    this.modeBox(L, st);
+    this.modeBox(L, st); this.keyHint(L); this.root.classList.toggle('has-gg', m.mode.id === 'gg');
     const tu = st.tutorial; const tel = this.q('.tutorial'); tel.classList.toggle('hidden', !tu || m.ended);
-    if (tu) { const key = tu.i + '|' + this.H.touch; if (this._tuKey !== key) { this._tuKey = key; tel.innerHTML = `<div class="tu-step">TRAINING · STEP ${tu.i + 1} OF ${tu.n}</div><div class="tu-title">${esc(tu.title)}</div><div class="tu-text">${tu.text}</div><div class="tu-bar"><i style="width:${(tu.i / tu.n * 100).toFixed(0)}%"></i></div><div class="tu-skip">${this.H.touch ? 'Tap <b>Skip ▸</b> to skip this step' : 'Press <kbd>Enter</kbd> to skip this step'}</div>`; tel.classList.remove('done'); void tel.offsetWidth; tel.classList.add('done'); } }
+    if (tu) { const key = tu.i + '|' + this.H.touch + '|' + tu.text; if (this._tuKey !== key) { this._tuKey = key; tel.innerHTML = `<div class="tu-title">${esc(tu.title)}<span class="tu-count">${tu.i + 1} of ${tu.n}</span></div><div class="tu-text">${tu.text}</div><div class="tu-bar"><i style="width:${(tu.i / tu.n * 100).toFixed(0)}%"></i></div><div class="tu-skip">${this.H.touch ? 'Tap Skip to skip this step' : 'Press <kbd>Enter</kbd> to skip this step'}</div>`; tel.classList.remove('done'); void tel.offsetWidth; tel.classList.add('done'); } }
     E.cd.textContent = st.countdown > 0 ? st.countdown : ''; E.cd.style.display = st.countdown > 0 ? '' : 'none';
     E.fps.style.display = s.showFps ? '' : 'none'; if (s.showFps) E.fps.textContent = `${Math.round(m.gfx.fps)} FPS · ${m.gfx.q.name}${m.gfx.dynScale < 1 ? ` · ${Math.round(m.gfx.dynScale * 100)}%` : ''}`;
     // zone vignette
@@ -162,23 +164,30 @@ export class HUD {
     if (inp?.map) { this.mapOpen = !this.mapOpen; E.big.classList.toggle('hidden', !this.mapOpen); }
     if (this.deathShown && m.mode.respawnDelay >= 0) { const t = Math.max(0, L.respawnAt - m.time); const dt2 = this.el.death.querySelector('.d-timer'); if (dt2) dt2.textContent = `Respawning in ${t.toFixed(1)}s`; }
   }
+  promptNeedsKey(ctrl) { return !!(ctrl.promptCrate || ctrl.promptManual); }
+  keyHint(L) {
+    const s = getProfile().settings; const el = this.q('.keyhint'); const show = !this.H.touch && s.keyHints !== false && L.alive && !L.dropping && !this.m.ended && this.m.mode.id !== 'training' && this.m.time < 45;
+    el.classList.toggle('hidden', !show); if (!show || this._khDone) return; this._khDone = true;
+    const k = (a, t) => `<span>${a.map((x) => `<kbd>${x}</kbd>`).join('')} ${t}</span>`;
+    el.innerHTML = k(['Click'], 'shoot') + k(['Right click'], 'zoom') + k(['Space'], 'jump') + k(['R'], 'reload') + k(['Esc'], 'pause');
+  }
   modeBox(L, st) {
     const m = this.m; const id = m.mode.id; let html = '';
     if (id === 'br') {
       const z = st.zone; const out = z && Math.hypot(L.pos.x - z.x, L.pos.z - z.z) > z.r;
-      html = `<div class="mb-row"><span class="mb-big">👥 ${st.alive ?? '-'}</span><span>ALIVE</span><span class="mb-big">☠ ${L.stats.kills}</span><span>KILLS</span></div>` +
-        (st.phase >= 0 ? `<div class="mb-zone ${st.zoneShrinking ? 'shrink' : ''} ${out ? 'out' : ''}">${st.zoneShrinking ? 'ZONE CLOSING' : 'ZONE SHRINKS IN'} ${formatTime(st.zoneTimer || 0)}${out ? ' · OUTSIDE ZONE!' : ''}</div>` : `<div class="mb-zone">${L.dropping?.inPlane ? 'Choose your drop: press JUMP' : 'Storm forming…'}</div>`);
+      html = `<div class="mb-row"><span class="mb-big">${st.alive ?? '-'}</span><span>left</span><span class="mb-big">${L.stats.kills}</span><span>knockouts</span></div>` +
+        (st.phase >= 0 ? `<div class="mb-zone ${st.zoneShrinking ? 'shrink' : ''} ${out ? 'out' : ''}">${st.zoneShrinking ? 'Circle closing' : 'Circle shrinks in'} ${formatTime(st.zoneTimer || 0)}${out ? '. Get inside!' : ''}</div>` : `<div class="mb-zone">${L.dropping?.inPlane ? 'Choose your drop: press JUMP' : 'Storm forming…'}</div>`);
     } else if (id === 'gg') {
       const total = GUN_GAME_ORDER.length; const lvl = Math.min(L.ggLevel, total - 1);
-      html = `<div class="mb-row"><span class="mb-big">${lvl + 1}/${total}</span><span>WEAPON</span><span class="mb-big">${formatTime(st.time || 0)}</span></div><div class="mb-sub">Leader: ${(st.lead ?? 0) + 1}/${total}</div>`;
-      const next = GUN_GAME_ORDER[lvl + 1]; this.el.gg.innerHTML = GUN_GAME_ORDER.map((wid, i) => `<i class="${i < lvl ? 'done' : i === lvl ? 'cur' : ''}" title="${esc(WEAPON_MAP[wid].name)}"></i>`).join('') + `<span>${next ? 'NEXT: ' + esc(WEAPON_MAP[next].name) : 'FINAL WEAPON — GET A KNIFE KILL!'}</span>`;
+      html = `<div class="mb-row"><span class="mb-big">${lvl + 1} of ${total}</span><span class="mb-big">${formatTime(st.time || 0)}</span></div><div class="mb-sub">Leader is on gun ${(st.lead ?? 0) + 1}</div>`;
+      const next = GUN_GAME_ORDER[lvl + 1]; this.el.gg.innerHTML = GUN_GAME_ORDER.map((wid, i) => `<i class="${i < lvl ? 'done' : i === lvl ? 'cur' : ''}" title="${esc(WEAPON_MAP[wid].name)}"></i>`).join('') + `<span>${next ? 'Next: ' + esc(WEAPON_MAP[next].name) : 'Last one! Win with a knife knockout.'}</span>`;
     } else if (id === 'training') {
-      html = `<div class="mb-row"><span class="mb-big">${L.stats.kills}</span><span>DUMMIES DOWN</span></div><div class="mb-sub">Training mode · dummies don't shoot back</div>`;
+      html = `<div class="mb-row"><span class="mb-big">${L.stats.kills}</span><span>dummies down</span></div><div class="mb-sub">Practice dummies don't shoot back.</div>`;
     } else if (id === 'tdm') {
       const ts = st.teamScore || [0, 0]; const my = L.team;
-      html = `<div class="mb-row"><span class="mb-big team0 ${my === 0 ? 'mine' : ''}">${ts[0]}</span><span>CORAL vs NEON</span><span class="mb-big team1 ${my === 1 ? 'mine' : ''}">${ts[1]}</span></div><div class="mb-sub">First to ${st.limit} · ${formatTime(st.time || 0)}</div>`;
+      html = `<div class="mb-row"><span class="mb-big team0 ${my === 0 ? 'mine' : ''}">${ts[0]}</span><span>Coral vs Neon</span><span class="mb-big team1 ${my === 1 ? 'mine' : ''}">${ts[1]}</span></div><div class="mb-sub">First to ${st.limit} · ${formatTime(st.time || 0)}</div>`;
     } else {
-      html = `<div class="mb-row"><span class="mb-big">${L.stats.kills}</span><span>KILLS</span><span class="mb-big">${formatTime(st.time || 0)}</span></div><div class="mb-sub">Leader: ${esc(st.leader || '-')} (${st.leaderKills ?? 0}/${st.limit})</div>`;
+      html = `<div class="mb-row"><span class="mb-big">${L.stats.kills}</span><span>knockouts</span><span class="mb-big">${formatTime(st.time || 0)}</span></div><div class="mb-sub">Leader: ${esc(st.leader || '-')} (${st.leaderKills ?? 0}/${st.limit})</div>`;
     }
     this.el.mode.innerHTML = html; this.el.gg.style.display = id === 'gg' ? '' : 'none';
   }
@@ -215,7 +224,7 @@ export class HUD {
     for (const cc of m.combatants) if (cc !== L && cc.alive && L.team >= 0 && cc.team === L.team) { x.fillStyle = '#4fd1ff'; x.beginPath(); x.arc(cc.pos.x - B.minX, cc.pos.z - B.minZ, 4, 0, 7); x.fill(); }
     x.translate(L.pos.x - B.minX, L.pos.z - B.minZ); x.rotate(-L.yaw); x.fillStyle = '#ffd23f'; x.beginPath(); x.moveTo(0, -9); x.lineTo(6, 7); x.lineTo(0, 3); x.lineTo(-6, 7); x.closePath(); x.fill();
     x.restore();
-    this.q('.bm-legend').innerHTML = `${esc(m.map.name)} · <span style="color:#fff">◯ zone</span> · <span style="color:#4fd1ff">◌ next zone</span> · <span style="color:#ffd23f">■ supply drop</span> · press M to close`;
+    this.q('.bm-legend').innerHTML = `${esc(m.map.name)} · <span class="lg"><i style="border-color:#fff"></i>zone</span> · <span class="lg"><i style="border-color:#4fd1ff;border-style:dashed"></i>next zone</span> · <span class="lg"><i style="background:#ffd23f;border-color:#ffd23f;border-radius:3px"></i>supply drop</span> · press M to close`;
   }
   drawOverlay(L, st) {
     const x = this.octx; const W = this.el.overlay.width, H = this.el.overlay.height; const m = this.m; const cam = m.gfx.camera; const now = m.time;
@@ -227,7 +236,7 @@ export class HUD {
       if (c.revealUntil > now && !ally) mark(c.pos, c.pos.y + 2.2, 'rgba(255,60,60,0.9)', '', 7);
       if (ally || (c.kind === 'remote' || c.kind === 'puppet') && !c.isBot && L.team >= 0 && c.team === L.team) mark(c.pos, c.pos.y + 2.3, '#4fd1ff', c.name, 5);
     }
-    for (const d of this.airdrops) { const dist = Math.hypot(d.x - L.pos.x, d.z - L.pos.z); mark(d, (m.world.terrain(d.x, d.z) || 0) + 3, '#ffd23f', `SUPPLY ${Math.round(dist)}m`, 6); }
+    for (const d of this.airdrops) { const dist = Math.hypot(d.x - L.pos.x, d.z - L.pos.z); mark(d, (m.world.terrain(d.x, d.z) || 0) + 3, '#ffd23f', `Supply ${Math.round(dist)}m`, 6); }
   }
   dispose() { this.offs.forEach((f) => f()); removeEventListener('resize', this.resize); this.root.innerHTML = ''; this.root.classList.add('hidden'); }
 }
