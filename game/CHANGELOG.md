@@ -84,3 +84,15 @@ The "Knocked out" card no longer stays on screen after you respawn in Gun Game.
 - **Brighter beach:** Coral Cove has a clearer blue sky and less white haze, so the island looks colorful from the plane and on the ground.
 - **Damage numbers:** each hit pops a chunky clay number over the player you hit. Quick hits on the same player add up into one number, headshots are yellow and knockouts are red. Turn them off in **Settings → Controls**.
 - **Fix:** the Gun Game box no longer splits "1 of 20" onto two lines when the clock shows a long time.
+
+## 11. Big moments, directed like a film
+
+You gave creative direction through a set of motion and video skills. Three of them shaped this update: bang-motion (moves like video, not slides; one signature move; text that leaves faster than it arrives), remotion-motion-graphics (no constant-speed motion, staggered letters, synthesized sound) and video-shotcraft (sound that goes riser, impact, sparkle on the beat). I used them to direct the game's big moments the way a film director would.
+
+- **Opening shot:** during the 3-2-1 countdown the camera swings around your own clay character, from the front to behind, then flies into its eyes and hands over to first person on "Go" with a quick wide-angle whoosh. Your character stays on the right of the screen so the numbers and the title never cover its face. It's skipped if your device asks for reduced motion.
+- **Clay-press text:** big words now drop in letter by letter, stretched tall with a motion blur, then land with a squash and settle. They leave faster than they arrive, flying upward. This one move is used for every big moment.
+- **Title cards:** each match opens with its mode on its own clay color (Battle Royale tangerine, Gun Game teal, Custom sky) and the map name underneath.
+- **Countdown:** each number presses in with a soft clay squelch, the last second builds with a rising whoosh, and "Go" lands on a green clay slab with a thump and a sparkle.
+- **Knockouts:** "Knocked out [name]" slides in with your XP. Streaks get their own teal slab with a sparkle, and the camera gives a small punch-in. The old "ELIMINATED" card is gone.
+- **New moments:** "Knife round" when you reach the last weapon in Gun Game, "Final two" in Battle Royale when only you and one other player are left, and a big "Victory" slab while the camera circles you after a win. If someone else wins, their name appears instead.
+- **Sound:** a new set of synthesized sounds (a rising whoosh, a clay thump, sparkles and a clay press) is timed to land with the text.

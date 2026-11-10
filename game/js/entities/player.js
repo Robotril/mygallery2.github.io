@@ -12,6 +12,8 @@ import { radialGlow } from '../engine/textures.js';
 
 const GRAV = 21, JUMP = 7.4, WALK = 5.3, SPRINT_MUL = 1.42, CROUCH_MUL = 0.52, ADS_MUL = 0.68, STEP = 0.46;
 const V = new THREE.Vector3(), V2 = new THREE.Vector3(), Q = new THREE.Quaternion(), E = new THREE.Euler(0, 0, 0, 'YXZ');
+const _fpQ = new THREE.Quaternion();
+const INTRO_OFF = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // three.js field of view is vertical, so a phone held upright would see a thin slice of the world.
 // In portrait, treat the setting as a horizontal view (a bit narrower) and convert it, capped to avoid fisheye.
@@ -48,6 +50,7 @@ export class PlayerController {
     if (m.ended && this.winnerId != null) { this.victoryCam(dt); this.vm.group.visible = false; return; }
     if (!c.alive) { this.deadCam(dt); this.vm.group.visible = false; return; }
     if (c.dropping) { this.dropUpdate(dt, inp); this.vm.group.visible = false; this.camera(dt, 0); return; }
+    if (this.introCam(dt)) { this.vm.group.visible = false; return; }
     this.vm.group.visible = true;
     if (assistOn) this.aimAssist(dt, inp, inp.touch || inp.keyYaw || inp.keyPitch ? 1 : 0.55);
 
@@ -216,6 +219,43 @@ export class PlayerController {
     if (c.pos.y <= g + 0.02) { c.pos.y = g; c.dropping = null; c.vel.set(0, 0, 0); c.onGround = true; this.landDip = 0.2; audio.footstep(this.surface(), c.pos, true); }
   }
 
+  // Opening shot while the match counts down: the camera swings round your clay character, from the front
+  // to behind, then flies into its eyes and hands over to first person on "Go" with a wide-angle whoosh.
+  // Movement and shooting wait (bots are frozen during the countdown too). Off with reduced motion.
+  introCam(dt) {
+    const c = this.c, m = this.m, cam = m.gfx.camera;
+    if (this.introDone) return false;
+    const st = m.mode.state || {}; const id = m.mode.id;
+    if (!(st.countdown > 0) || id === 'br' || id === 'training' || !c.alive || INTRO_OFF) {
+      if (this.introT) { this.introDone = true; m.thirdPerson = false; this.fovCur += 16; } // hand over: wide whoosh that settles
+      else if (m.mode.started || id === 'br' || id === 'training' || INTRO_OFF) this.introDone = true;
+      return false;
+    }
+    if (!this.introT) { this.introT = 0; this.introDur = Math.max(1.5, st.countdown); }
+    this.introT += dt; const k = Math.min(1, this.introT / this.introDur);
+    const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
+    const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw); const hx = c.pos.x, hy = c.pos.y + 1.45, hz = c.pos.z;
+    const ORBIT = 0.7; let px, py, pz, d;
+    if (k < ORBIT) { // swing from the front-left round to behind
+      const s = ease(k / ORBIT); const th = 0.45 + (Math.PI - 0.45) * s; d = 3.3 - 0.8 * s;
+      const ox = fx * Math.cos(th) - fz * Math.sin(th), oz = fz * Math.cos(th) + fx * Math.sin(th);
+      const hit = m.world.raycast(hx, hy, hz, ox, 0.12, oz, d, 4); if (hit) d = Math.max(0.6, hit.t - 0.3);
+      px = hx + ox * d; py = hy + 0.32 - 0.1 * s; pz = hz + oz * d;
+      // frame the character on the right third (title card left, countdown centre); centred again once behind
+      const vx = hx - px, vz = hz - pz, vl = Math.hypot(vx, vz) || 1; const off = 0.62 * d / 3.3 * (1 - Math.min(1, Math.max(0, (s - 0.6) / 0.4)));
+      cam.position.set(px, py, pz); cam.lookAt(hx + (vz / vl) * off, hy + 0.08, hz - (vx / vl) * off);
+    } else { // push in through the head to the eyes
+      const s = (k - ORBIT) / (1 - ORBIT); const e = s * s * s; d = 2.5 * (1 - e);
+      const bx = hx - fx * 2.5, by = hy + 0.22, bz = hz - fz * 2.5; const eye = c.pos.y + 1.62;
+      cam.position.set(bx + (hx - bx) * e, by + (eye - by) * e, bz + (hz - bz) * e);
+      cam.lookAt(hx + fx * 6, hy - 0.2, hz + fz * 6); Q.copy(cam.quaternion);
+      E.set(c.pitch, c.yaw, 0); _fpQ.setFromEuler(E);
+      cam.quaternion.slerpQuaternions(Q, _fpQ, ease(s));
+    }
+    m.thirdPerson = d > 0.85; // show your body, but never the inside of your own head
+    this.setFov(62 + k * 6, 1, dt);
+    return true;
+  }
   victoryCam(dt) {
     const m = this.m, cam = m.gfx.camera; const w = m.byId.get(this.winnerId); if (!w) return;
     this.vT = (this.vT || 0) + dt; const a = w.yaw + Math.sin(this.vT * 0.4) * 0.6; const d = 3.6;

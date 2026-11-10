@@ -191,6 +191,9 @@ Home uses the mode slabs and the round button row. Sub-screens have a Back pill 
 ### Mode Slab
 The signature component. A large clay slab in the mode's color with a display title, one plain sentence, and for Battle Royale a navy Play pill. Slabs drop in one after another (70ms apart) and settle with a squash.
 
+### Kinetic Moments
+Big moments (countdown, Go, knockouts, streaks, Final two, Knife round, Victory, title cards) use one signature move, the **clay press**: letters drop in stretched tall with a vertical motion blur, land with a squash and settle; they exit faster than they enter, flying up. A moment has at most two text levels (a line and one small sub-line). Words standing on the 3D scene are light clay with a navy pressed edge; words on a slab are navy. Slabs take the moment's color: Go grass, streaks teal, Final two tangerine, Knife round tomato, Victory sun, title cards the mode color. Every moment lands with a sound (riser into impact, sparkle after). Reduced motion: fade only.
+
 ## Do's and Don'ts
 
 ### Do:

@@ -6,6 +6,8 @@ import { formatTime, clamp } from '../core/util.js';
 import { getProfile } from '../core/save.js';
 import { currentSpread } from '../entities/weaponLogic.js';
 import { icon } from './icons.js';
+import { kinetic } from './kinetic.js';
+import { audio } from '../engine/audio.js';
 
 const V = new THREE.Vector3();
 const h = (tag, cls, html = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
@@ -34,6 +36,7 @@ export class HUD {
       <div class="weaponbox"><div class="w-name"></div><div class="w-ammo"><b class="mag"></b><span class="res"></span></div><div class="w-slots"></div><div class="w-equip"></div></div>
       <div class="ggbar"></div>
       <div class="countdown"></div>
+      <div class="kin-stage"></div>
       <div class="fps"></div>
       <div class="death hidden"></div>
       <div class="scores hidden"></div>
@@ -53,6 +56,7 @@ export class HUD {
       ev.on('damaged', (e) => { this.dmgT = Math.min(1, this.dmgT + e.amount / 40); if (e.from && e.from.pos) this.addDir(e.from.pos); }),
       ev.on('killfeed', (e) => this.addFeed(e)),
       ev.on('kill', (e) => this.medal(e)),
+      ev.on('end', (res) => this.endMoment(res)),
       ev.on('notify', (e) => this.toast(e.text, e.kind)),
       ev.on('ping', (p) => this.pings.push(p)),
       ev.on('airdrop', (p) => this.airdrops.push(p)),
@@ -99,11 +103,51 @@ export class HUD {
     const d = h('div', 'kf' + (mine ? ' mine' : ''), `${e.killer ? `<b>${esc(e.killer)}</b>${e.kBot ? '<i class="bot">BOT</i>' : ''}` : ''} <span class="kf-w">${e.head ? icon('aim', 'hs') + ' ' : ''}${esc(wn)}</span> <b class="v">${esc(e.victim)}</b>${e.vBot ? '<i class="bot">BOT</i>' : ''}`);
     this.el.feed.prepend(d); while (this.el.feed.children.length > 6) this.el.feed.lastChild.remove(); setTimeout(() => d.classList.add('fade'), 5000); setTimeout(() => d.remove(), 5600);
   }
+  // Knockout banner: your target's name slides in with a horizontal streak; streaks get their own clay slab.
   medal(e) {
-    const names = { 2: 'DOUBLE KILL', 3: 'TRIPLE KILL', 5: 'RAMPAGE', 7: 'UNSTOPPABLE', 10: 'CLAY LEGEND' };
-    const lines = [`<div class="md-main">ELIMINATED <b>${esc(e.victim?.name)}</b></div>`, `<div class="md-xp">+${e.head ? 125 : 100} XP${e.head ? ' · HEADSHOT' : ''}</div>`];
-    if (names[e.streak]) lines.push(`<div class="md-streak">${names[e.streak]}</div>`);
-    const d = h('div', 'medal', lines.join('')); this.el.medals.prepend(d); while (this.el.medals.children.length > 3) this.el.medals.lastChild.remove(); setTimeout(() => d.remove(), 2600);
+    const box = this.el.medals; this.kos = (this.kos || []).filter((k) => k.el.isConnected);
+    while (this.kos.length >= 2) this.kos.shift().exit();
+    const names = { 2: 'Double knockout', 3: 'Triple knockout', 5: 'Rampage', 7: 'Unstoppable', 10: 'Clay legend' };
+    const xp = e.head ? 'Headshot · +125 XP' : '+100 XP';
+    this.kos.push(kinetic(box, 'Knocked out ' + (e.victim?.name || ''), { cls: 'kt-ko', from: 'left', stagger: 0.018, hold: 1.5, sub: xp }));
+    if (names[e.streak]) { this.kos.push(kinetic(box, names[e.streak], { cls: 'kt-streak', slab: true, delay: 0.3, hold: 1.4 })); setTimeout(() => audio.sparkle(5), 420); }
+  }
+  // Countdown numbers press in one by one; the last second carries a riser that lands on "Go".
+  countdownMoment(st) {
+    const E = this.el; const cd = st.countdown > 0 ? st.countdown : 0;
+    if (cd === this._cd) return;
+    const prev = this._cd; this._cd = cd; this._cdK?.exit(); this._cdK = null;
+    if (prev === undefined && (cd > 0 || this.m.mode.id === 'br')) this.introCard();
+    if (cd > 0) {
+      this._cdK = kinetic(E.cd, String(cd), { cls: 'kt-count', hold: 0, stagger: 0 }); audio.press(cd === 1);
+      if (cd === 1) audio.riser(0.95);
+    } else if (prev > 0) {
+      kinetic(E.cd, 'Go', { cls: 'kt-go', slab: true, hold: 0.75, stagger: 0.05 }); audio.impactHit(true); audio.sparkle(4);
+    }
+  }
+  // Title card while the match counts down: the mode on its own clay color, the map underneath.
+  introCard() {
+    const id = this.m.mode.id; if (id === 'training') return;
+    kinetic(this.q('.kin-stage'), this.m.mode.name, { cls: 'kt-title mode-' + id, from: 'left', slab: true, stagger: 0.035, hold: 1.7, sub: this.m.map?.name || '' });
+  }
+  // The end of a match: a big pressed "Victory" while the camera circles the winner, or who won.
+  endMoment(res) {
+    if (!res || this._ended) return; this._ended = true; this._final?.exit();
+    const stage = this.q('.kin-stage');
+    if (res.won) { kinetic(stage, 'Victory', { cls: 'kt-win', slab: true, stagger: 0.06, hold: 3.4 }); setTimeout(() => { audio.impactHit(true); audio.sparkle(5); }, 120); }
+    else kinetic(stage, res.winnerName && res.winnerName !== 'Nobody' ? res.winnerName + ' wins' : 'Time is up', { cls: 'kt-end', from: 'left', stagger: 0.03, hold: 2.6 });
+  }
+  // Gun Game: reaching the last weapon is its own beat.
+  knifeMoment(L) {
+    if (this.m.mode.id !== 'gg' || this.m.ended) return; const last = GUN_GAME_ORDER.length - 1; const lvl = L.ggLevel || 0;
+    if (lvl === last && this._ggLvl != null && this._ggLvl < last) { audio.riser(0.5); setTimeout(() => { kinetic(this.q('.kin-stage'), 'Knife round', { cls: 'kt-final kt-knife', slab: true, stagger: 0.045, hold: 1.6 }); audio.impactHit(false); }, 500); }
+    this._ggLvl = lvl;
+  }
+  // Battle Royale: one beat when only two players are left and you are one of them.
+  finalMoment(st, L) {
+    if (this._finalShown || this.m.mode.id !== 'br' || st.alive !== 2 || !L.alive || this.m.ended) return;
+    this._finalShown = true; audio.riser(0.6);
+    setTimeout(() => { this._final = kinetic(this.q('.kin-stage'), 'Final two', { cls: 'kt-final', slab: true, stagger: 0.05, hold: 1.8 }); audio.impactHit(false); }, 600);
   }
   toast(text, kind = 'info') { const d = h('div', 'toast ' + kind, esc(text)); this.el.notify.append(d); while (this.el.notify.children.length > 3) this.el.notify.firstChild.remove(); setTimeout(() => d.classList.add('fade'), 2600); setTimeout(() => d.remove(), 3200); }
 
@@ -194,7 +238,7 @@ export class HUD {
     this.modeBox(L, st); this.keyHint(L); this.root.classList.toggle('has-gg', m.mode.id === 'gg');
     const tu = st.tutorial; const tel = this.q('.tutorial'); tel.classList.toggle('hidden', !tu || m.ended);
     if (tu) { const key = tu.i + '|' + this.H.touch + '|' + tu.text; if (this._tuKey !== key) { this._tuKey = key; tel.innerHTML = `<div class="tu-title">${esc(tu.title)}<span class="tu-count">${tu.i + 1} of ${tu.n}</span></div><div class="tu-text">${tu.text}</div><div class="tu-bar"><i style="width:${(tu.i / tu.n * 100).toFixed(0)}%"></i></div><div class="tu-skip">${this.H.touch ? 'Tap Skip to skip this step' : 'Press <kbd>Enter</kbd> to skip this step'}</div>`; tel.classList.remove('done'); void tel.offsetWidth; tel.classList.add('done'); } }
-    E.cd.textContent = st.countdown > 0 ? st.countdown : ''; E.cd.style.display = st.countdown > 0 ? '' : 'none';
+    this.countdownMoment(st); this.finalMoment(st, L); this.knifeMoment(L);
     E.fps.style.display = s.showFps ? '' : 'none'; if (s.showFps) E.fps.textContent = `${Math.round(m.gfx.fps)} FPS · ${m.gfx.q.name}${m.gfx.dynScale < 1 ? ` · ${Math.round(m.gfx.dynScale * 100)}%` : ''}`;
     // zone vignette
     const z = st.zone; E.zoneV.style.opacity = z && L.alive && Math.hypot(L.pos.x - z.x, L.pos.z - z.z) > z.r ? 0.6 : 0;

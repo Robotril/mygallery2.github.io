@@ -120,6 +120,23 @@ class AudioEngine {
   hover() { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime; this.tone(t, 0.03, o.node, { type: 'sine', freq: 2000, gain: 0.025 }); }
   beep(high) { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime; this.tone(t, 0.12, o.node, { type: 'square', freq: high ? 1320 : 880, gain: 0.07 }); }
   levelUp() { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime; [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(t + i * 0.08, 0.35, o.node, { type: 'triangle', freq: f, gain: 0.14 })); }
+  // ---------- Big-moment sound phrase: riser → impact → sparkle ----------
+  // riser: filtered noise sweeping up plus a rising tone, timed to land exactly `dur` seconds from now
+  riser(dur = 1) { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime;
+    this.noise(this.white, t, dur, o.node, { type: 'bandpass', freq: 300, sweepTo: 5200, q: 2.2, gain: 0.16, attack: dur * 0.85, decay: dur + 0.04 });
+    this.tone(t, dur, o.node, { type: 'triangle', freq: 180, to: 720, gain: 0.07, attack: dur * 0.8 }); }
+  // impact: soft clay thump (pitch-dropping sine + low noise), not a gunshot
+  impactHit(big = false) { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime;
+    this.tone(t, big ? 0.5 : 0.3, o.node, { type: 'sine', freq: big ? 150 : 190, to: 48, gain: big ? 0.55 : 0.38, attack: 0.004 });
+    this.noise(this.brown, t, 0.22, o.node, { type: 'lowpass', freq: 600, sweepTo: 140, gain: big ? 0.5 : 0.3 });
+    this.tone(t, 0.09, o.node, { type: 'square', freq: 95, to: 60, gain: 0.08 }); }
+  // sparkle: a quick bright arpeggio that trails off
+  sparkle(steps = 4) { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime + 0.04;
+    [1568, 2093, 2637, 3136, 3951].slice(0, steps).forEach((f, i) => this.tone(t + i * 0.055, 0.28 - i * 0.03, o.node, { type: 'sine', freq: f, gain: 0.07 - i * 0.008 })); }
+  // press: the squash of a clay letter landing (countdown numbers)
+  press(high = false) { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime;
+    this.tone(t, 0.16, o.node, { type: 'sine', freq: high ? 520 : 340, to: high ? 300 : 190, gain: 0.3 });
+    this.noise(this.brown, t, 0.08, o.node, { type: 'lowpass', freq: 900, gain: 0.22 }); }
   zoneWarn() { const o = this.out(null, 1, 1, this.ui); if (!o) return; const t = this.ctx.currentTime; for (let i = 0; i < 3; i++) this.tone(t + i * 0.3, 0.22, o.node, { type: 'sawtooth', freq: 440, to: 330, gain: 0.06 }); }
 
   // ---------- Music ----------

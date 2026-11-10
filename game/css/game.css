@@ -583,3 +583,41 @@ table.lb tr.me td { background: rgba(255,138,61,.16); font-weight: 800; } table.
 }
 #hud .dmgpop.head { color: var(--sun); font-size: calc(36px * var(--uiz, 1)); }
 #hud .dmgpop.kill { color: var(--tomato); font-size: calc(42px * var(--uiz, 1)); }
+
+/* ---------- Kinetic type for big moments ("clay press", js/ui/kinetic.js) ---------- */
+.kt { pointer-events: none; font-family: var(--display); font-weight: 800; line-height: .95; color: var(--ink); text-align: center; }
+.kt-line { white-space: nowrap; }
+.kt-w { display: inline-block; white-space: nowrap; }
+.kt-ch { display: inline-block; transform-origin: 50% 100%; will-change: transform, opacity; }
+.kt-sub { font-family: var(--font); font-weight: 800; font-size: .34em; color: var(--ink-2); margin-top: .18em; letter-spacing: .01em; }
+/* clay slab behind the words: the mode color with its darker underside */
+.kt-slab { --c: var(--sun); --c-d: var(--sun-d); background: var(--c) var(--grain); background-blend-mode: soft-light;
+  border-radius: 28px 34px 30px 26px / 30px 26px 32px 28px; padding: .16em .5em .22em; transform-origin: 50% 70%;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.55), inset 0 -.12em 0 var(--c-d), 0 12px 22px -8px rgba(29,34,66,.45); }
+.kt-slab .kt-sub { color: var(--ink); opacity: .78; }
+/* letters standing straight on the 3D scene: light clay with a navy pressed edge so they read anywhere */
+.kt-count .kt-line, .kt-ko .kt-line, .kt-end .kt-line { color: var(--sun); -webkit-text-stroke: .045em var(--ink); paint-order: stroke fill; text-shadow: 0 .06em 0 var(--ink), 0 .16em .3em rgba(29,34,66,.35); }
+.kt-ko .kt-line, .kt-end .kt-line { color: var(--white); }
+
+/* countdown: numbers share one spot so the old one flies off while the new one lands */
+#hud .countdown { font-size: 150px; color: inherit; text-shadow: none; width: 0; height: 0; overflow: visible; }
+#hud .countdown > .kt { position: absolute; left: 0; top: 0; translate: -50% -50%; }
+.kt-go { font-size: .8em; --c: var(--grass); --c-d: var(--grass-d); }
+/* knockout banners stack under the crosshair */
+#hud .medals { display: flex; flex-direction: column; align-items: center; gap: 10px; width: max-content; }
+.kt-ko { font-size: 34px; }
+.kt-ko .kt-sub { color: var(--white); -webkit-text-stroke: .1em var(--ink); paint-order: stroke fill; font-size: .5em; }
+.kt-streak { font-size: 30px; --c: var(--teal); --c-d: var(--teal-d); }
+/* stage for title cards and end moments */
+#hud .kin-stage { position: absolute; inset: 0; pointer-events: none; zoom: var(--uiz); }
+#hud .kin-stage > .kt { position: absolute; }
+.kt-title { left: 48px; bottom: 30%; font-size: 64px; text-align: left; }
+.kt-title.mode-gg { --c: var(--teal); --c-d: var(--teal-d); } .kt-title.mode-br { --c: var(--tangerine); --c-d: var(--tangerine-d); }
+.kt-knife { --c: var(--tomato); --c-d: var(--tomato-d); } .kt-title.mode-ffa, .kt-title.mode-tdm { --c: var(--sky); --c-d: var(--sky-d); }
+.kt-title .kt-sub { font-size: .4em; }
+.kt-win, .kt-final, .kt-end { left: 50%; top: 22%; translate: -50% 0; }
+.kt-win { font-size: 110px; --c: var(--sun); --c-d: var(--sun-d); }
+.kt-final { font-size: 70px; --c: var(--tangerine); --c-d: var(--tangerine-d); }
+.kt-end { font-size: 64px; }
+#hud.touch .countdown { font-size: 90px; } #hud.touch .kt-ko { font-size: 24px; } #hud.touch .kt-title { font-size: 40px; left: 24px; bottom: 34%; }
+#hud.touch .kt-win { font-size: 66px; } #hud.touch .kt-final, #hud.touch .kt-end { font-size: 44px; }

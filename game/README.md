@@ -41,6 +41,10 @@ Running is automatic once you've held Up for a moment, gentle aim assist helps o
 - **Clay surfaces** (`js/engine/clayLook.js`): every lit surface gets soft lumps, thumb dents, hand-mixed color and a gentle edge glow, measured in real-world size so the pattern stays the same scale on every object. High and Ultra add fingerprint ridges up close. Low skips the effect, and an automatic drop to Low turns it off.
 - **Weapons and effects**: rounded gun bodies with ejection ports, trigger guards, vents, flash hiders and an orange CLAYFRONT stripe; guns swing up when you switch; shots add a little roll; real brass casings tumble and bounce; impacts spark; explosions throw clay debris, leave a scorch mark and keep burning with a smoke column.
 
+## Big moments
+
+Matches open with a camera shot that swings around your character and flies into first person on "Go", with a title card in the mode's color. Countdown numbers, "Go", knockouts, streaks, "Knife round" (Gun Game), "Final two" (Battle Royale) and "Victory" use one kinetic text style, the clay press (`js/ui/kinetic.js`): letters drop in stretched with a vertical motion blur, squash and settle, then fly out faster than they came. Each moment is paired with synthesized sound (rising whoosh, clay thump, sparkle) from `js/engine/audio.js`. Reduced-motion settings turn the camera shot off and make the text fade instead.
+
 ## Pause and results
 
 - **Pause** shows the mode, map, your knockouts, deaths, damage and clock, four clear buttons (Resume, Settings, Controls, Leave match) and your character idling beside the menu. Esc resumes.

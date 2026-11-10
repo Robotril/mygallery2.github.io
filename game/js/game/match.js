@@ -206,7 +206,7 @@ export class Match {
     this.effects.claySplat(victim.pos.x, victim.pos.y + 1, victim.pos.z, 0, 1, 0, victim.look.outfit, true);
     const feed = { killer: attacker ? attacker.name : null, killerId: attacker?.id, victim: victim.name, victimId: victim.id, weapon: info.weaponId, head: !!info.head, kBot: !!attacker?.isBot, vBot: victim.isBot, explosive: !!info.explosive };
     this.events.emit('killfeed', feed); this.netBroadcast({ t: 'kf', ...feed });
-    if (attacker?.kind === 'local' && attacker !== victim) { this.events.emit('kill', { victim, head: info.head, streak: attacker.stats.streak }); audio.killConfirm(); }
+    if (attacker?.kind === 'local' && attacker !== victim) { this.events.emit('kill', { victim, head: info.head, streak: attacker.stats.streak }); audio.killConfirm(); if (attacker.ctrl) attacker.ctrl.fovCur -= 4; }
     if (victim.kind === 'local') this.events.emit('died', { killer: attacker, weapon: info.weaponId });
     for (const b of this.combatants) if (b.brain && b.brain.target === victim) b.brain.target = null;
     if (this.mode.usePool && this.authority) this.dropInventory(victim);
