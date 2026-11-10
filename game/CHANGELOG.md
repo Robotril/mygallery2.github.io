@@ -102,3 +102,7 @@ You gave creative direction through a set of motion and video skills. Three of t
 - **Aim help follows the difficulty:** on Easy your aim snaps onto enemies almost perfectly while you shoot or zoom, and your shots are tighter. Normal gives some help, Hard a little, and Expert none. The difficulty picker now says what each level means. Turning aim assist off in **Settings → Controls** still switches it off completely.
 - **Every mode is a bit easier:** at every difficulty, bots react more slowly, miss more and do less damage. Each level up is still clearly harder than the one below.
 - **Less lag and no more freezes:** the game used to pause for a moment whenever it met something new during a match (the first explosion, a new gun in someone's hands, a part of the map you hadn't looked at yet) because it was building graphics code on the spot. All of that is now done on the loading screen ("Warming up the clay…"), so matches don't hitch. Explosions also no longer force the whole world's graphics to rebuild when they light up.
+
+## 13. Victory banner fix
+
+The big "Victory" slab used to sit across the middle of the screen and covered your character's face while the camera circled you after a win. It now sits lower, so you can see your character celebrate.

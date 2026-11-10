@@ -616,7 +616,7 @@ table.lb tr.me td { background: rgba(255,138,61,.16); font-weight: 800; } table.
 .kt-knife { --c: var(--tomato); --c-d: var(--tomato-d); } .kt-title.mode-ffa, .kt-title.mode-tdm { --c: var(--sky); --c-d: var(--sky-d); }
 .kt-title .kt-sub { font-size: .4em; }
 .kt-win, .kt-final, .kt-end { left: 50%; top: 22%; translate: -50% 0; }
-.kt-win { font-size: 110px; --c: var(--sun); --c-d: var(--sun-d); }
+.kt-win { font-size: 110px; --c: var(--sun); --c-d: var(--sun-d); top: auto; bottom: 17%; } /* below the winner's face while the camera circles them */
 .kt-final { font-size: 70px; --c: var(--tangerine); --c-d: var(--tangerine-d); }
 .kt-end { font-size: 64px; }
 #hud.touch .countdown { font-size: 90px; } #hud.touch .kt-ko { font-size: 24px; } #hud.touch .kt-title { font-size: 40px; left: 24px; bottom: 34%; }
