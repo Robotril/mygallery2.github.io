@@ -112,7 +112,7 @@ export class NetSync {
         if (L && msg.victimId === L.id) { L.alive = false; L.deadAt = m.time; L.stats.deaths++; L.lastAttacker = m.byId.get(msg.killerId) || null; m.events.emit('died', { killer: L.lastAttacker, weapon: msg.weapon }); }
         { const v = m.byId.get(msg.victimId); if (v && v !== L) { v.alive = false; m.effects.claySplat(v.pos.x, v.pos.y + 1, v.pos.z, 0, 1, 0, v.look.outfit, true); } } break;
       case 'hurt': if (L) { m.events.emit('damaged', { amount: msg.a, from: { pos: new THREE.Vector3(msg.fx, 0, msg.fz) } }); audio.hurt(); L.lastDamage = m.time; } break;
-      case 'hm': m.events.emit('hitmarker', { head: !!msg.h, kill: !!msg.k, dmg: msg.d }); audio.hitmarker(!!msg.h); if (L) { L.stats.hits++; L.stats.damage += msg.d; } break;
+      case 'hm': m.events.emit('hitmarker', { head: !!msg.h, kill: !!msg.k, dmg: msg.d, vid: msg.v, pos: msg.x != null ? { x: msg.x, y: msg.y, z: msg.z } : null }); audio.hitmarker(!!msg.h); if (L) { L.stats.hits++; L.stats.damage += msg.d; } break;
       case 'boom': if (msg.stun) { m.effects.flashBurst(msg.x, msg.y, msg.z); audio.explosion(V.set(msg.x, msg.y, msg.z)); } else m.explode(msg.x, msg.y, msg.z, msg.r, 0, null, 'frag'); break;
       case 'smoke': m.effects.smokeCloud(msg.x, msg.y, msg.z, m.world); audio.smoke(V.set(msg.x, msg.y, msg.z)); break;
       case 'stun': if (L) { L.stun = msg.s; m.events.emit('stunned', msg.s); } break;

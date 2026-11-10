@@ -236,7 +236,7 @@ export function buildBeach(scene, quality, seed = 1) {
 
   info.env = {
     sky: { turbidity: 1.4, rayleigh: 2.2, mie: 0.0025, mieG: 0.8, elevation: 38, azimuth: 160 },
-    sunColor: '#fff0d2', sunIntensity: 2.7, hemiSky: '#9fcff5', hemiGround: '#c9b089', hemiIntensity: 0.75, fog: '#bcd9ee', fogDensity: 0.0032, exposure: 0.82,
+    sunColor: '#fff0d2', sunIntensity: 2.8, hemiSky: '#9fcff5', hemiGround: '#d6bd8f', hemiIntensity: 0.95, fog: '#a9d3f1', fogDensity: 0.0027, exposure: 0.9, skyGain: 0.7,
     ambience: 'beach', clouds: true,
   };
   info.bounds = world.bounds;

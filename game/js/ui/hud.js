@@ -19,6 +19,7 @@ export class HUD {
       <div class="vignette dmg"></div><div class="vignette low"></div><div class="vignette zone"></div><div class="flashbang"></div>
       <div class="scope"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
       <div class="xhair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><b></b></div>
+      <div class="dmgpops"></div>
       <div class="hitmark"><i></i><i></i><i></i><i></i></div>
       <div class="dmgdirs"></div>
       <div class="compass"><div class="compass-strip"></div><div class="compass-tick"></div></div>
@@ -48,7 +49,7 @@ export class HUD {
     this.buildCompass(); this.buildMapImage();
     const ev = match.events;
     this.offs = [
-      ev.on('hitmarker', (e) => { this.hitT = 0.25; this.el.hit.classList.toggle('head', !!e.head); this.el.hit.classList.toggle('kill', !!e.kill); }),
+      ev.on('hitmarker', (e) => { this.addPop(e); this.hitT = 0.25; this.el.hit.classList.toggle('head', !!e.head); this.el.hit.classList.toggle('kill', !!e.kill); }),
       ev.on('damaged', (e) => { this.dmgT = Math.min(1, this.dmgT + e.amount / 40); if (e.from && e.from.pos) this.addDir(e.from.pos); }),
       ev.on('killfeed', (e) => this.addFeed(e)),
       ev.on('kill', (e) => this.medal(e)),
@@ -117,6 +118,43 @@ export class HUD {
   hideDeath() { this.deathShown = false; this.el.death.classList.add('hidden'); this.el.spec.classList.add('hidden'); }
   setSpectating(c) { const s = this.el.spec; if (!c) { s.classList.add('hidden'); return; } this.el.death.classList.add('hidden'); s.classList.remove('hidden'); s.innerHTML = `Spectating <b>${esc(c.name)}</b>${c.isBot ? ' <i class="bot">BOT</i>' : ''} <button class="btn small" data-a="next">Next ${icon('next')}</button><button class="btn small primary" data-a="leave">Leave</button>`; s.querySelectorAll('button').forEach((b) => b.onclick = () => this.H.onDeathAction(b.dataset.a)); }
 
+  // ---- damage numbers: clay digits that pop up over whoever you hit ----
+  // Quick hits on the same target add up in one number (SMG bursts, shotgun pellets) instead of stacking.
+  addPop(e) {
+    if (getProfile().settings.dmgNumbers === false || !(e.dmg > 0)) return;
+    if (!this.pops) { this.pops = []; this.popPool = []; this.popBox = this.q('.dmgpops'); this.popStill = matchMedia('(prefers-reduced-motion: reduce)').matches; }
+    let p = e.vid != null ? this.pops.find((o) => o.vid === e.vid && o.age < 0.45 && !o.kill) : null;
+    if (p) { p.val += e.dmg; p.age = Math.min(p.age, 0.12); p.punch = 1; }
+    else {
+      const el = this.popPool.pop() || h('div', 'dmgpop'); if (!el.isConnected) this.popBox.appendChild(el);
+      p = { el, vid: e.vid, val: e.dmg, age: 0, punch: 0, jx: (Math.random() - 0.5) * 40, wp: e.pos ? new THREE.Vector3(e.pos.x, e.pos.y + 2.0, e.pos.z) : null };
+      this.pops.push(p); if (this.pops.length > 10) this.dropPop(this.pops.shift());
+    }
+    if (e.pos && p.wp) p.wp.set(e.pos.x, e.pos.y + 2.0, e.pos.z);
+    p.head = p.head || !!e.head; p.kill = p.kill || !!e.kill;
+    p.el.textContent = Math.max(1, Math.round(p.val));
+    p.el.className = 'dmgpop' + (p.kill ? ' kill' : p.head ? ' head' : '');
+  }
+  dropPop(p) { p.el.style.opacity = 0; this.popPool.push(p.el); }
+  updatePops(dt) {
+    if (!this.pops?.length) return;
+    const cam = this.m.gfx.camera, W = innerWidth, H = innerHeight, still = this.popStill;
+    for (let i = this.pops.length - 1; i >= 0; i--) {
+      const p = this.pops[i]; p.age += dt; p.punch = Math.max(0, p.punch - dt * 7);
+      const life = p.kill ? 1.15 : 0.85;
+      if (p.age >= life) { this.dropPop(p); this.pops.splice(i, 1); continue; }
+      let x = W / 2 + 46, y = H / 2 - 46; // no position known (older multiplayer peers): beside the crosshair
+      if (p.wp) { V.copy(p.wp).project(cam); if (V.z > 1) { p.el.style.opacity = 0; continue; } x = (V.x * 0.5 + 0.5) * W; y = (-V.y * 0.5 + 0.5) * H; }
+      const k = p.age / life;
+      // squash-and-settle pop in (ease-out-back), then float up and fade
+      const t = Math.min(1, p.age / 0.2), c = 1.9, b = 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2;
+      const s = still ? 1 : 0.45 + 0.55 * b + p.punch * 0.3;
+      const rise = still ? 0 : -54 * (1 - (1 - k) * (1 - k));
+      p.el.style.transform = `translate3d(${(x + p.jx).toFixed(1)}px, ${(y + rise).toFixed(1)}px, 0) translate(-50%, -50%) scale(${(s * (1 + p.punch * 0.12)).toFixed(3)}, ${(s * (1 - p.punch * 0.1)).toFixed(3)})`;
+      p.el.style.opacity = k > 0.68 ? ((1 - k) / 0.32).toFixed(3) : 1;
+    }
+  }
+
   update(dt, inp) {
     const m = this.m, L = m.local, E = this.el; if (!L) return;
     const ctrl = L.ctrl; const w = L.weapon; const st = m.mode.hudState(); const s = getProfile().settings;
@@ -126,6 +164,7 @@ export class HUD {
     E.xh.style.opacity = m.ended || !L.alive || L.dropping || ctrl?.scoped || (L.fire.ads > 0.6 && w && w.stats.optic !== 'iron') || L.sprinting ? 0 : 1;
     E.scope.classList.toggle('on', !!ctrl?.scoped);
     this.hitT -= dt; E.hit.style.opacity = this.hitT > 0 ? 1 : 0;
+    this.updatePops(dt);
     this.dmgT = Math.max(0, this.dmgT - dt * 0.8); E.dmgV.style.opacity = this.dmgT;
     E.lowV.style.opacity = L.alive && L.hp < 35 ? 0.4 + Math.sin(m.time * 6) * 0.2 : 0;
     this.flashT = Math.max(0, this.flashT - dt * 0.5); E.flash.style.opacity = Math.min(0.9, this.flashT);

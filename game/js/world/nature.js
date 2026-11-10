@@ -3,6 +3,7 @@
 // so gameplay, bots and netcode are unchanged. Density scales with the graphics preset.
 import * as THREE from 'three';
 import { mulberry32, makeNoise2D } from '../core/util.js';
+import { CLAY } from '../engine/clayLook.js';
 
 const CELL = 24; // grass is chunked so the camera frustum culls it and far chunks are skipped
 const shared = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(0.8, 0.45) }, uGust: { value: 0.6 } };
@@ -23,7 +24,7 @@ export function addWind(mat, { amp = 0.12, base = 1.2, ref = 6, freq = 1.3 } = {
         transformed.xz += uWind * s * ${amp.toFixed(3)} * k;
         transformed.y += cos(ph * 1.7) * ${(amp * 0.25).toFixed(3)} * k; }`);
   };
-  mat.customProgramCacheKey = () => 'wind' + amp + base + ref;
+  mat.customProgramCacheKey = () => 'wind' + amp + base + ref + (CLAY.on ? (CLAY.fine ? 'C' : 'c') : '');
   mat.needsUpdate = true; return mat;
 }
 

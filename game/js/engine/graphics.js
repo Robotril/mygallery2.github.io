@@ -9,6 +9,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { isMobileUA, isTouchDevice } from '../core/util.js';
 import { setTextureQuality } from './textures.js';
 import { setClayQuality } from '../entities/clay.js';
+import { setClayLook } from './clayLook.js';
 
 export const PRESETS = {
   low: { name: 'Low', grass: 0.35, grassFar: 32, grassMax: 20000, grassBlades: 5, rocks: 0.5,  pixelRatio: 0.7, shadows: false, shadowSize: 512, bloom: false, ao: false, drawDist: 150, fogMul: 1.5, texSize: 256, aniso: 1, bump: false, lowMat: true, terrainSeg: 4, waterSeg: 60, waterDetail: 0.4, particles: 0.4, pedestrians: 6, traffic: 6, clouds: 6, antialias: false },
@@ -70,6 +71,7 @@ export class Graphics {
     this.renderScale = settings?.renderScale ?? 1; this.dynScale = 1;
     setTextureQuality(this.q.texSize, Math.min(this.q.aniso, this.renderer.capabilities.getMaxAnisotropy()));
     setClayQuality({ bump: this.q.bump, lowMat: this.q.lowMat });
+    setClayLook(pid !== 'low', [this.scene, this.vmScene], pid === 'high' || pid === 'ultra');
     this.renderer.shadowMap.enabled = this.q.shadows;
     this.resize();
     return pid;
@@ -155,6 +157,7 @@ export class Graphics {
     Object.assign(this.q, { pixelRatio: P.pixelRatio, bloom: P.bloom, ao: P.ao, drawDist: P.drawDist, particles: P.particles, name: P.name, shadows: P.shadows && hadShadows, shadowSize: P.shadowSize });
     if (hadShadows && !this.q.shadows) { this.renderer.shadowMap.enabled = false; if (this.sun) this.sun.castShadow = false; scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); }
     else if (this.sun && this.q.shadows && this.sun.shadow.mapSize.x > P.shadowSize) { this.sun.shadow.mapSize.set(P.shadowSize, P.shadowSize); this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; }
+    if (id === 'low') setClayLook(false, [scene, this.vmScene]); // on a struggling device the clay surface shader goes with the drop to Low
     this.dynScale = 1; this.resize(); this.setupComposer(scene);
   }
   trackFrame(dt, now) {

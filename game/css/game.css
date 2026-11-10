@@ -305,9 +305,9 @@ tr.me td { color: var(--tangerine-d); font-weight: 800; }
 .compass-tick { position: absolute; left: 50%; top: 0; width: 4px; height: 8px; margin-left: -2px; border-radius: 0 0 3px 3px; background: var(--tangerine); }
 .minimap { position: absolute; top: 12px; left: 12px; width: 190px; height: 190px; border-radius: 50%; box-shadow: 0 0 0 6px var(--white), inset 0 -5px 0 var(--white-d), 0 10px 18px -8px rgba(29,34,66,.45); }
 .minimap canvas { width: 100%; height: 100%; display: block; }
-.modebox { position: absolute; top: 216px; left: 12px; width: 190px; border-radius: 22px; padding: 10px 14px 12px; font-size: 14px; font-weight: 700; }
+.modebox { position: absolute; top: 216px; left: 12px; min-width: 190px; max-width: 280px; border-radius: 22px; padding: 10px 14px 12px; font-size: 14px; font-weight: 700; }
 .mb-row { display: flex; align-items: baseline; gap: 6px; justify-content: space-between; color: var(--ink-2); }
-.mb-big { font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--ink); line-height: 1; }
+.mb-big { font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--ink); line-height: 1; white-space: nowrap; }
 .mb-big.team0 { color: var(--tangerine-d); } .mb-big.team1 { color: var(--sky-d); } .mb-big.mine { text-decoration: underline; text-decoration-thickness: 3px; }
 .mb-sub { color: var(--ink-2); margin-top: 4px; }
 .mb-zone { margin-top: 6px; color: #6b46d9; font-weight: 800; }
@@ -396,7 +396,7 @@ tr.me td { color: var(--tangerine-d); font-weight: 800; }
 .layout-editor .tbtn { cursor: move; --c: var(--sun); --c-d: var(--sun-d); }
 #touch .tb-skip { left: calc(50% - 50px); top: 64%; width: 100px; height: 44px; border-radius: 999px; font-size: 16px; font-weight: 800; --c: var(--sun); --c-d: var(--sun-d); }
 #hud.touch .minimap { width: 118px; height: 118px; top: 10px; left: 10px; }
-#hud.touch .modebox { top: 10px; left: 142px; width: 170px; padding: 7px 12px 9px; } #hud.touch .mb-big { font-size: 20px; }
+#hud.touch .modebox { top: 10px; left: 142px; min-width: 170px; max-width: 240px; padding: 7px 12px 9px; } #hud.touch .mb-big { font-size: 20px; }
 #hud.touch .compass, #hud.touch .keyhint { display: none; }
 #hud.touch .weaponbox { right: auto; left: 20vw; bottom: 10px; text-align: left; min-width: 0; padding: 6px 14px 8px; }
 #hud.touch .w-ammo .mag { font-size: 30px; } #hud.touch .w-name { font-size: 12px; } #hud.touch .w-slots, #hud.touch .w-equip { display: none; }
@@ -571,3 +571,15 @@ table.lb tr.me td { background: rgba(255,138,61,.16); font-weight: 800; } table.
 .bar.hp.low i { animation: hpPulse .9s ease-in-out infinite; } .bar.hp.low i { background: var(--tomato); }
 @keyframes hpPulse { 50% { filter: brightness(1.35); } }
 .mb-zone.shrink { animation: blink .8s ease-in-out infinite alternate; }
+
+/* Damage numbers: chunky clay digits over the target. Navy outline and pressed underside keep them readable on any scene. */
+#hud .dmgpops { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+#hud .dmgpop {
+  position: absolute; left: 0; top: 0; opacity: 0; will-change: transform, opacity; white-space: nowrap;
+  font-family: 'Baloo 2', Nunito, system-ui, sans-serif; font-weight: 800; line-height: 1;
+  font-size: calc(30px * var(--uiz, 1)); color: #f4f7fc;
+  -webkit-text-stroke: calc(5px * var(--uiz, 1)) var(--ink); paint-order: stroke fill;
+  text-shadow: 0 calc(4px * var(--uiz, 1)) 0 var(--ink);
+}
+#hud .dmgpop.head { color: var(--sun); font-size: calc(36px * var(--uiz, 1)); }
+#hud .dmgpop.kill { color: var(--tomato); font-size: calc(42px * var(--uiz, 1)); }

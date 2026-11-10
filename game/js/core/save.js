@@ -8,7 +8,7 @@ export const SAVE_VERSION = 1;
 export const DEFAULT_SETTINGS = {
   graphics: 'auto', renderScale: 1, fov: 78, sensitivity: 1, adsSensitivity: 0.8, invertY: false,
   master: 0.8, sfx: 0.9, music: 0.5, ambience: 0.7, showFps: false, fullscreen: true, crosshairColor: '#ffffff',
-  uiScale: 'auto', keyHints: true, autoSprint: true, autoPickup: true, pcAimAssist: true, touchSensitivity: 1, aimAssist: true, autoFire: false, buttonScale: 1, touchLayout: {}, touchLayoutP: {}, holdToCrouch: false, holdToAim: true,
+  uiScale: 'auto', keyHints: true, dmgNumbers: true, autoSprint: true, autoPickup: true, pcAimAssist: true, touchSensitivity: 1, aimAssist: true, autoFire: false, buttonScale: 1, touchLayout: {}, touchLayoutP: {}, holdToCrouch: false, holdToAim: true,
 };
 
 function freshProfile() {

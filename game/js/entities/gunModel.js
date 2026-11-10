@@ -13,7 +13,7 @@ const matCache = new Map();
 function M(color, o = {}) {
   const key = color + JSON.stringify(o);
   if (!matCache.has(key)) {
-    const m = new THREE.MeshStandardMaterial({ color, roughness: o.rough ?? 0.45, metalness: (o.metal ?? 0.35) * 0.6, map: o.map || null, emissive: o.emissive || '#000000', emissiveIntensity: o.ei ?? 1, toneMapped: o.toneMapped ?? true });
+    const m = new THREE.MeshStandardMaterial({ color, roughness: Math.max(0.58, o.rough ?? 0.66), metalness: (o.metal ?? 0.35) * 0.25, map: o.map || null, emissive: o.emissive || '#000000', emissiveIntensity: o.ei ?? 1, toneMapped: o.toneMapped ?? true });
     if (o.bump) { m.bumpMap = clayBump(); m.bumpScale = 0.6; }
     matCache.set(key, m);
   }

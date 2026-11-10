@@ -185,8 +185,8 @@ export class Match {
     victim.brain?.onDamaged(attacker, info);
     if (victim.kind === 'local') { this.events.emit('damaged', { amount: r.dealt, from: attacker, dir: info.dir }); audio.hurt(); }
     if (victim.kind === 'remote') this.netSend(victim.peerId, { t: 'hurt', a: r.dealt, fx: attacker ? attacker.pos.x : 0, fz: attacker ? attacker.pos.z : 0 });
-    if (attacker?.kind === 'local' && attacker !== victim) { this.events.emit('hitmarker', { head: info.head, kill: r.killed, dmg: r.dealt }); audio.hitmarker(info.head); }
-    if (attacker?.kind === 'remote' && attacker !== victim) this.netSend(attacker.peerId, { t: 'hm', h: info.head ? 1 : 0, k: r.killed ? 1 : 0, d: Math.round(r.dealt) });
+    if (attacker?.kind === 'local' && attacker !== victim) { this.events.emit('hitmarker', { head: info.head, kill: r.killed, dmg: r.dealt, vid: victim.id, pos: victim.pos }); audio.hitmarker(info.head); }
+    if (attacker?.kind === 'remote' && attacker !== victim) this.netSend(attacker.peerId, { t: 'hm', h: info.head ? 1 : 0, k: r.killed ? 1 : 0, d: Math.round(r.dealt), v: victim.id, x: +victim.pos.x.toFixed(1), y: +victim.pos.y.toFixed(1), z: +victim.pos.z.toFixed(1) });
     if (r.killed) this.kill(victim, attacker, info);
     return r;
   }

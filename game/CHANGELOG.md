@@ -76,3 +76,11 @@ The "Knocked out" card no longer stays on screen after you respawn in Gun Game.
 - **Fixes:**
   - Leaving a match no longer counts as a loss or names a winner.
   - Battle Royale placements are correct. Players are no longer all shown as #1.
+
+## 10. Real clay look, a brighter beach and damage numbers
+
+- **Everything looks like clay:** characters, guns, buildings, props and the ground now have soft lumps, thumb dents and hand-mixed color, with a soft glow along their edges like real plasticine. On High and Ultra you can see little fingerprint marks up close. The effect is off on Low, and it turns itself off if the game has to drop to Low to stay smooth.
+- **Matte clay, not plastic:** characters and guns are less shiny, so they look molded instead of glossy.
+- **Brighter beach:** Coral Cove has a clearer blue sky and less white haze, so the island looks colorful from the plane and on the ground.
+- **Damage numbers:** each hit pops a chunky clay number over the player you hit. Quick hits on the same player add up into one number, headshots are yellow and knockouts are red. Turn them off in **Settings → Controls**.
+- **Fix:** the Gun Game box no longer splits "1 of 20" onto two lines when the clock shows a long time.

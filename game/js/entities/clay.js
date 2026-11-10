@@ -17,7 +17,7 @@ let bakedMat = null;
 function bakedMaterial() {
   if (!bakedMat) {
     if (quality.lowMat) bakedMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    else { bakedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }); if (quality.bump) { bakedMat.bumpMap = clayBump(); bakedMat.bumpScale = 1.4; } }
+    else { bakedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.74, metalness: 0 }); if (quality.bump) { bakedMat.bumpMap = clayBump(); bakedMat.bumpScale = 1.4; } }
   }
   return bakedMat;
 }
@@ -53,7 +53,7 @@ export function clayMat(color, o = {}) {
   if (!m) {
     if (quality.lowMat && !o.emissive && !o.transparent) m = new THREE.MeshLambertMaterial({ color });
     else {
-      m = new THREE.MeshStandardMaterial({ color, roughness: o.rough ?? 0.62, metalness: o.metal ?? 0.0, emissive: o.emissive || '#000000', emissiveIntensity: o.emissive ? 1.4 : 0, transparent: !!o.transparent, opacity: o.opacity ?? 1 });
+      m = new THREE.MeshStandardMaterial({ color, roughness: o.rough ?? 0.74, metalness: o.metal ?? 0.0, emissive: o.emissive || '#000000', emissiveIntensity: o.emissive ? 1.4 : 0, transparent: !!o.transparent, opacity: o.opacity ?? 1 });
       if (quality.bump && !o.smooth) { m.bumpMap = clayBump(); m.bumpScale = 1.4; }
       if (o.emissive) m.toneMapped = false;
     }
