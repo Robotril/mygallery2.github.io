@@ -17,11 +17,17 @@ import { Ambient } from '../world/ambient.js';
 import { Nature } from '../world/nature.js';
 
 const V1 = new THREE.Vector3(), V2 = new THREE.Vector3();
+// Bot skill and the player's aim help per difficulty. Every level is a little gentler than before;
+// `assist` is how much your aim is pulled onto enemies (Easy almost locks on, Expert gets none).
 export const SKILLS = {
-  easy: { wobble: 0.05, name: 'Easy', reaction: 0.95, turn: 2.6, err: 1.4, spread: 2.6, view: 65, fov: 0.55, burst: 0.35, dmgMul: 0.6 },
-  normal: { wobble: 0.03, name: 'Normal', reaction: 0.6, turn: 4.2, err: 0.95, spread: 1.8, view: 95, fov: 0.45, burst: 0.55, dmgMul: 0.8 },
-  hard: { wobble: 0.017, name: 'Hard', reaction: 0.38, turn: 6.5, err: 0.6, spread: 1.3, view: 125, fov: 0.35, burst: 0.75, dmgMul: 0.95 },
-  expert: { wobble: 0.009, name: 'Expert', reaction: 0.22, turn: 9, err: 0.38, spread: 1.0, view: 165, fov: 0.25, burst: 0.9, dmgMul: 1.05 },
+  easy: { wobble: 0.06, name: 'Easy', reaction: 1.15, turn: 2.2, err: 1.7, spread: 3.0, view: 55, fov: 0.6, burst: 0.3, dmgMul: 0.45,
+    assist: { cone: 0.42, rate: 22, yaw: 1, pitch: 1, idle: 0.35, spread: 0.35 }, desc: 'Strong aim help: your aim snaps onto enemies' },
+  normal: { wobble: 0.035, name: 'Normal', reaction: 0.72, turn: 3.8, err: 1.1, spread: 2.0, view: 85, fov: 0.5, burst: 0.5, dmgMul: 0.68,
+    assist: { cone: 0.22, rate: 8, yaw: 0.7, pitch: 0.55, idle: 0, spread: 0.75 }, desc: 'Some aim help, fair bots' },
+  hard: { wobble: 0.02, name: 'Hard', reaction: 0.46, turn: 5.8, err: 0.7, spread: 1.45, view: 115, fov: 0.38, burst: 0.68, dmgMul: 0.85,
+    assist: { cone: 0.12, rate: 3.5, yaw: 0.45, pitch: 0.3, idle: 0, spread: 1 }, desc: 'A little aim help, sharp bots' },
+  expert: { wobble: 0.011, name: 'Expert', reaction: 0.28, turn: 8, err: 0.45, spread: 1.12, view: 150, fov: 0.28, burst: 0.85, dmgMul: 0.97,
+    assist: null, desc: 'No aim help, the toughest bots' },
 };
 
 export class Match {

@@ -99,7 +99,7 @@ export class Menu {
       <div class="row"><button class="btn primary big" data-act="start-gg">${icon('play')} Start</button><button class="btn" data-act="gg-friends">${icon('users')} Play with friends</button></div>`;
   }
   mapPicker() { return `<div class="maps">${MAPS.map((m) => `<div class="card map ${this.sel.map === m.id ? 'sel' : ''}" data-act="sel-map" data-v="${m.id}"><div class="map-img">${MAP_ART[m.id]}</div><b>${m.name}</b><small>${m.sub}</small></div>`).join('')}</div>`; }
-  diffPicker(key = 'difficulty', obj = this.sel) { return `<div class="seg">${Object.entries(SKILLS).map(([k, v]) => `<button class="btn ${obj[key] === k ? 'on' : ''}" data-act="sel-diff" data-k="${key}" data-v="${k}">${v.name}</button>`).join('')}</div>`; }
+  diffPicker(key = 'difficulty', obj = this.sel) { return `<div class="seg">${Object.entries(SKILLS).map(([k, v]) => `<button class="btn ${obj[key] === k ? 'on' : ''}" data-act="sel-diff" data-k="${key}" data-v="${k}">${v.name}</button>`).join('')}</div><p class="diff-desc">${SKILLS[obj[key]]?.desc || ''}</p>`; }
 
   s_custom() {
     const c = this.custom; const br = c.mode === 'br';

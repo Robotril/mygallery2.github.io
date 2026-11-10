@@ -9,6 +9,7 @@ import { clamp, damp, angleDiff } from '../core/util.js';
 import { F_SOLID } from '../world/collision.js';
 import { CROUCH_H, STAND_H, RADIUS } from './combatant.js';
 import { radialGlow } from '../engine/textures.js';
+import { SKILLS } from '../game/match.js';
 
 const GRAV = 21, JUMP = 7.4, WALK = 5.3, SPRINT_MUL = 1.42, CROUCH_MUL = 0.52, ADS_MUL = 0.68, STEP = 0.46;
 const V = new THREE.Vector3(), V2 = new THREE.Vector3(), Q = new THREE.Quaternion(), E = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -52,7 +53,7 @@ export class PlayerController {
     if (c.dropping) { this.dropUpdate(dt, inp); this.vm.group.visible = false; this.camera(dt, 0); return; }
     if (this.introCam(dt)) { this.vm.group.visible = false; return; }
     this.vm.group.visible = true;
-    if (assistOn) this.aimAssist(dt, inp, inp.touch || inp.keyYaw || inp.keyPitch ? 1 : 0.55);
+    if (assistOn) this.aimAssist(dt, inp, inp.touch || inp.keyYaw || inp.keyPitch ? 1 : 0.85);
 
     // ---- movement ----
     const w = c.weapon; const ws = w ? w.stats : null;
@@ -172,7 +173,7 @@ export class PlayerController {
       const cam = m.gfx.camera; const dir = V.set(0, 0, -1).applyQuaternion(cam.quaternion).normalize();
       const origin = V2.copy(cam.position);
       const muzzle = this.vm.muzzleWorld(cam);
-      const spread = currentSpread(c);
+      const spread = currentSpread(c) * (this.assistSpread ?? 1);
       if (m.role === 'client') m.sync.clientFire(c, w, origin, dir, spread, muzzle);
       else m.fireWeapon(c, w, origin, dir, spread, muzzle);
       // recoil
@@ -188,20 +189,31 @@ export class PlayerController {
     if (performance.now() / 1000 - f.lastShot > 0.12 && this.recovered > 0) { const k = this.recovered * (1 - Math.exp(-dt * 6)) * 0.85; c.pitch -= k; this.recovered -= k / 0.85; if (this.recovered < 0.0005) this.recovered = 0; }
   }
 
+  // Aim help scales with the match difficulty (SKILLS[*].assist): Easy almost locks on, Expert has none.
+  // The Settings toggle still switches it off completely.
   aimAssist(dt, inp, strength = 1) {
-    const c = this.c, m = this.m; this.assistCheck -= dt;
+    const c = this.c, m = this.m; const A = SKILLS[m.mode?.s?.difficulty || 'normal']?.assist; this.assistSpread = 1;
+    if (!A) { this.assistTarget = null; return; }
+    this.assistCheck -= dt;
     if (this.assistCheck <= 0) {
-      this.assistCheck = 0.1; this.assistTarget = null; let best = 0.11;
+      this.assistCheck = 0.08; this.assistTarget = null; let best = A.cone;
       const fx = -Math.sin(c.yaw) * Math.cos(c.pitch), fy = Math.sin(c.pitch), fz = -Math.cos(c.yaw) * Math.cos(c.pitch);
       for (const e of m.combatants) {
-        if (e === c || !e.alive || !m.isEnemy(c, e)) continue; const dx = e.pos.x - c.pos.x, dy = e.pos.y + 1.3 - c.eyeY, dz = e.pos.z - c.pos.z; const d = Math.hypot(dx, dy, dz); if (d > 80) continue;
-        const ang = Math.acos(clamp((dx * fx + dy * fy + dz * fz) / d, -1, 1)); if (ang < best && m.world.lineOfSight(c.pos.x, c.eyeY, c.pos.z, e.pos.x, e.pos.y + 1.3, e.pos.z)) { best = ang; this.assistTarget = e; }
+        if (e === c || !e.alive || !m.isEnemy(c, e)) continue; const dx = e.pos.x - c.pos.x, dy = e.pos.y + 1.3 - c.eyeY, dz = e.pos.z - c.pos.z; const d = Math.hypot(dx, dy, dz); if (d > 90) continue;
+        const ang = Math.acos(clamp((dx * fx + dy * fy + dz * fz) / d, -1, 1)) - Math.min(0.05, 1.5 / d); // close enemies win ties
+        if (ang < best && m.world.lineOfSight(c.pos.x, c.eyeY, c.pos.z, e.pos.x, e.pos.y + 1.3, e.pos.z)) { best = ang; this.assistTarget = e; }
       }
     }
     const t = this.assistTarget; if (!t || !t.alive) return;
-    if (!(inp.fire || c.fire.ads > 0.5 || Math.hypot(inp.mx, inp.my) > 0.2 || inp.keyYaw || inp.keyPitch)) return;
-    const dx = t.pos.x - c.pos.x, dz = t.pos.z - c.pos.z, dy = t.pos.y + 1.25 - c.eyeY; const ty = Math.atan2(-dx, -dz), tp = Math.atan2(dy, Math.hypot(dx, dz));
-    const k = (1 - Math.exp(-dt * (c.fire.ads > 0.5 ? 6 : 3))) * strength; c.yaw += angleDiff(c.yaw, ty) * k * 0.5; c.pitch += (tp - c.pitch) * k * 0.35;
+    const engaged = inp.fire || c.fire.ads > 0.5;
+    const moving = Math.hypot(inp.mx, inp.my) > 0.2 || inp.keyYaw || inp.keyPitch;
+    const pull = engaged ? 1 : moving ? 0.5 : A.idle; if (pull <= 0) return;
+    // aim at the chest, leading a little for moving targets
+    const lead = 0.08; const dx = t.pos.x + t.vel.x * lead - c.pos.x, dz = t.pos.z + t.vel.z * lead - c.pos.z, dy = t.pos.y + (t.crouchT > 0.5 ? 0.95 : 1.25) - c.eyeY;
+    const ty = Math.atan2(-dx, -dz), tp = Math.atan2(dy, Math.hypot(dx, dz));
+    const k = (1 - Math.exp(-dt * A.rate * (c.fire.ads > 0.5 ? 1.6 : 1))) * strength * pull;
+    c.yaw += angleDiff(c.yaw, ty) * k * A.yaw; c.pitch += (tp - c.pitch) * k * A.pitch;
+    if (engaged) this.assistSpread = A.spread; // Easy also tightens your shots while locked on
   }
 
   dropUpdate(dt, inp) {

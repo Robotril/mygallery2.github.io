@@ -621,3 +621,5 @@ table.lb tr.me td { background: rgba(255,138,61,.16); font-weight: 800; } table.
 .kt-end { font-size: 64px; }
 #hud.touch .countdown { font-size: 90px; } #hud.touch .kt-ko { font-size: 24px; } #hud.touch .kt-title { font-size: 40px; left: 24px; bottom: 34%; }
 #hud.touch .kt-win { font-size: 66px; } #hud.touch .kt-final, #hud.touch .kt-end { font-size: 44px; }
+
+.diff-desc { margin: 6px 2px 0; font-weight: 700; font-size: 15px; color: var(--ink-2); }

@@ -52,6 +52,8 @@ export class Graphics {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Reading shader error logs forces the browser to finish every compile on the spot (a freeze); only do it when debugging.
+    this.renderer.debug.checkShaderErrors = /[?&]debug\b/.test(location.search);
     this.detected = detectPreset(this.renderer);
     this.presetId = 'medium'; this.q = { ...PRESETS.medium };
     this.renderScale = 1; this.dynScale = 1;

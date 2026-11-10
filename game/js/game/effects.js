@@ -82,7 +82,9 @@ export class Effects {
     this.decals = []; this.decalIdx = 0; const pg = new THREE.PlaneGeometry(0.16, 0.16);
     for (let i = 0; i < 90; i++) { const m = new THREE.Mesh(pg, this.decalMat); m.visible = false; scene.add(m); this.decals.push(m); }
     // flash light pool
-    this.lights = []; for (let i = 0; i < 3; i++) { const l = new THREE.PointLight('#ffb060', 0, 18, 2); l.visible = false; scene.add(l); this.lights.push({ l, t: 0, dur: 0, i0: 0 }); }
+    // one explosion light that stays switched on at zero brightness: changing how many lights are on would make
+    // three.js recompile every lit shader mid-match (a freeze), so only its brightness and position change
+    this.lights = []; for (let i = 0; i < 1; i++) { const l = new THREE.PointLight('#ffb060', 0, 18, 2); l.visible = true; scene.add(l); this.lights.push({ l, t: 0, dur: 0, i0: 0 }); }
     // shockwaves
     this.waves = []; const wg = new THREE.RingGeometry(0.8, 1, 32); wg.rotateX(-Math.PI / 2);
     for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(wg, new THREE.MeshBasicMaterial({ color: '#fff3d0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.visible = false; scene.add(m); this.waves.push({ m, t: 1 }); }
@@ -142,7 +144,7 @@ export class Effects {
     for (let i = 0; i < 40 * m; i++) { const a = Math.random() * 6.28, e = Math.random() * 1.4, s = 4 + Math.random() * 10; this.add.spawn(x, y + 0.5, z, Math.cos(a) * Math.cos(e) * s, Math.sin(e) * s + 2, Math.sin(a) * Math.cos(e) * s, 0.4 + Math.random() * 0.4, 1.2 + Math.random() * 1.2, 1, 0.55 + Math.random() * 0.3, 0.15, { drag: 3.5, grow: 2 }); }
     for (let i = 0; i < 30 * m; i++) { const a = Math.random() * 6.28, s = 1 + Math.random() * 5; const g = 0.15 + Math.random() * 0.2; this.alpha.spawn(x, y + 1, z, Math.cos(a) * s, 1 + Math.random() * 4, Math.sin(a) * s, 2.5 + Math.random() * 2, 2 + Math.random() * 2, g, g, g, { drag: 1.5, grow: 2.5, alpha: 0.7, g: -0.5 }); }
     for (let i = 0; i < 20 * m; i++) this.add.spawn(x, y + 0.5, z, (Math.random() - 0.5) * 22, Math.random() * 16, (Math.random() - 0.5) * 22, 1 + Math.random(), 0.12, 1, 0.7, 0.3, { g: 15 });
-    const L = this.lights.find((o) => o.t >= o.dur) || this.lights[0]; Object.assign(L, { t: 0, dur: 0.45, i0: 60 }); L.l.position.set(x, y + 1.5, z); L.l.visible = true; L.l.distance = radius * 4;
+    const L = this.lights.find((o) => o.t >= o.dur) || this.lights[0]; Object.assign(L, { t: 0, dur: 0.45, i0: 60 }); L.l.position.set(x, y + 1.5, z);  L.l.distance = radius * 4;
     const w = this.waves.find((o) => o.t >= 1) || this.waves[0]; w.t = 0; w.r = radius * 1.6; w.m.position.set(x, y + 0.2, z); w.m.visible = true;
     for (let i = 0; i < 16 * m; i++) { const g = 0.25 + Math.random() * 0.2; this.alpha.spawn(x, y + 0.4, z, (Math.random() - 0.5) * 12, 4 + Math.random() * 9, (Math.random() - 0.5) * 12, 1.6, 0.12 + Math.random() * 0.14, g * 1.3, g, g * 0.8, { solid: true, g: 16, floor: y, drag: 0.3 }); } // clay debris
     const sc = this.scorches[this.scorchIdx++ % this.scorches.length]; sc.position.set(x, y + 0.03, z); sc.scale.setScalar(radius * 0.55); sc.rotation.y = Math.random() * 6; sc.visible = true;
@@ -151,7 +153,7 @@ export class Effects {
   smokeCloud(x, y, z, world, dur = 13) {
     const s = { x, y: y + 1.5, z, r: 0.5, until: performance.now() / 1000 + dur, t: 0, dur }; this.smokes.push(s); world.smokes.push(s);
   }
-  flashBurst(x, y, z) { for (let i = 0; i < 30; i++) this.add.spawn(x, y + 0.5, z, (Math.random() - 0.5) * 14, Math.random() * 8, (Math.random() - 0.5) * 14, 0.4, 0.5, 1, 1, 0.8, { drag: 4 }); const L = this.lights[0]; Object.assign(L, { t: 0, dur: 0.25, i0: 120 }); L.l.position.set(x, y + 1, z); L.l.visible = true; }
+  flashBurst(x, y, z) { for (let i = 0; i < 30; i++) this.add.spawn(x, y + 0.5, z, (Math.random() - 0.5) * 14, Math.random() * 8, (Math.random() - 0.5) * 14, 0.4, 0.5, 1, 1, 0.8, { drag: 4 }); const L = this.lights[0]; Object.assign(L, { t: 0, dur: 0.25, i0: 120 }); L.l.position.set(x, y + 1, z);  }
   heal(x, y, z) { for (let i = 0; i < 12; i++) this.add.spawn(x + (Math.random() - 0.5), y + Math.random() * 1.6, z + (Math.random() - 0.5), 0, 1.2, 0, 0.8, 0.15, 0.3, 1, 0.5); }
   ring(x, y, z, color) { const c = C.set(color); for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28; this.add.spawn(x, y, z, Math.cos(a) * 3, 1.5, Math.sin(a) * 3, 0.6, 0.2, c.r, c.g, c.b, { drag: 2 }); } }
 
@@ -180,7 +182,7 @@ export class Effects {
       t.m.position.set(t.sx + dx * mid, t.sy + dy * mid, t.sz + dz * mid); t.m.scale.set(1, 1, L);
       if (t.t >= t.dur) t.m.visible = false;
     }
-    for (const L of this.lights) if (L.t < L.dur) { L.t += dt; L.l.intensity = L.i0 * Math.max(0, 1 - L.t / L.dur); if (L.t >= L.dur) L.l.visible = false; }
+    for (const L of this.lights) if (L.t < L.dur) { L.t += dt; L.l.intensity = L.i0 * Math.max(0, 1 - L.t / L.dur); if (L.t >= L.dur) L.l.intensity = 0; }
     for (const w of this.waves) if (w.t < 1) { w.t += dt * 2.2; const s = 0.5 + w.t * w.r; w.m.scale.set(s, 1, s); w.m.material.opacity = Math.max(0, 0.7 * (1 - w.t)); if (w.t >= 1) w.m.visible = false; }
     const now = performance.now() / 1000;
     for (let i = this.smokes.length - 1; i >= 0; i--) {

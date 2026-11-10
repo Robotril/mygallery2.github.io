@@ -16,6 +16,8 @@ import { NetSync } from './net/netsync.js';
 import { isTouchDevice, isMobileUA } from './core/util.js';
 import { itemLabel } from './game/loot.js';
 import { TrainingMode } from './game/training.js';
+import { buildGunModel } from './entities/gunModel.js';
+import { WEAPONS } from './data/weapons.js';
 MODE_CLASSES.training = TrainingMode;
 
 class App {
@@ -68,6 +70,25 @@ class App {
     z *= mul;
     document.documentElement.style.setProperty('--uiz', z.toFixed(3)); this.uiZoom = z;
   }
+  // Compile every shader the match will need while the loading screen is still up, in parallel where the
+  // browser supports it, so nothing compiles (and freezes the game for a moment) during play.
+  async prewarm(m) {
+    const g = this.gfx, r = g.renderer; const hidden = [];
+    for (const c of m.combatants) if (c.figure && c.weapon) c.figure.setWeapon(c.weapon.id, c.weapon.build); // guns in hands are built on first use
+    // reveal everything that is hidden right now (far-away map chunks, distant-character models, your own body,
+    // pooled loot and effects) so its shaders compile too, then put it all back
+    for (const sc of [m.scene, g.vmScene]) sc.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+    // one of every gun, in the world and in your hands, so the first time anyone holds one there is no compile
+    const rack = new THREE.Group(), vmRack = new THREE.Group();
+    for (const w of WEAPONS) { try { const a = buildGunModel(w.id).group; a.traverse((o) => { if (o.isMesh) o.castShadow = true; }); rack.add(a); vmRack.add(buildGunModel(w.id).group); } catch (e) { /* skip */ } }
+    m.scene.add(rack); g.vmScene.add(vmRack);
+    const limit = new Promise((res) => setTimeout(res, 8000)); const t0 = performance.now();
+    try { await Promise.race([Promise.all([r.compileAsync(m.scene, g.camera), r.compileAsync(g.vmScene, g.vmCamera)]), limit]); }
+    catch (e) { /* older browsers: shaders compile on first use, as before */ }
+    for (const o of hidden) o.visible = false;
+    m.scene.remove(rack); g.vmScene.remove(vmRack);
+    this.prewarmMs = Math.round(performance.now() - t0);
+  }
   startTraining() { this.startMatch({ mode: 'training', map: 'beach', bots: 3, difficulty: 'easy' }); }
   showcaseMode(m) { this.showcase?.setMode(m); }
   previewCharacter(id, custom) { this.showcase?.setCharacter(resolveLook(id, custom)); }
@@ -110,6 +131,7 @@ class App {
       }
     }
     const L = match.local; if (L && L.ctrl) this.attachCtrl(L, me.loadout, L.ctrl);
+    txt.textContent = 'Warming up the clay…'; fill.style.width = '100%'; await this.prewarm(match);
     boot.classList.add('hidden');
     this.hud = new HUD(document.getElementById('hud'), match, { touch: this.touch, onDeathAction: (a) => this.deathAction(a), locked: () => this.touch || this.input.locked || this.input.lockFailed, skipStep: () => this.input.pressed.add('skip') });
     match.events.on('end', (res) => this.onMatchEnd(res));

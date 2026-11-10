@@ -96,3 +96,9 @@ You gave creative direction through a set of motion and video skills. Three of t
 - **Knockouts:** "Knocked out [name]" slides in with your XP. Streaks get their own teal slab with a sparkle, and the camera gives a small punch-in. The old "ELIMINATED" card is gone.
 - **New moments:** "Knife round" when you reach the last weapon in Gun Game, "Final two" in Battle Royale when only you and one other player are left, and a big "Victory" slab while the camera circles you after a win. If someone else wins, their name appears instead.
 - **Sound:** a new set of synthesized sounds (a rising whoosh, a clay thump, sparkles and a clay press) is timed to land with the text.
+
+## 12. Easier modes, aim help by difficulty, and less lag
+
+- **Aim help follows the difficulty:** on Easy your aim snaps onto enemies almost perfectly while you shoot or zoom, and your shots are tighter. Normal gives some help, Hard a little, and Expert none. The difficulty picker now says what each level means. Turning aim assist off in **Settings → Controls** still switches it off completely.
+- **Every mode is a bit easier:** at every difficulty, bots react more slowly, miss more and do less damage. Each level up is still clearly harder than the one below.
+- **Less lag and no more freezes:** the game used to pause for a moment whenever it met something new during a match (the first explosion, a new gun in someone's hands, a part of the map you hadn't looked at yet) because it was building graphics code on the spot. All of that is now done on the loading screen ("Warming up the clay…"), so matches don't hitch. Explosions also no longer force the whole world's graphics to rebuild when they light up.
