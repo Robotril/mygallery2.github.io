@@ -106,3 +106,7 @@ You gave creative direction through a set of motion and video skills. Three of t
 ## 13. Victory banner fix
 
 The big "Victory" slab used to sit across the middle of the screen and covered your character's face while the camera circled you after a win. It now sits lower, so you can see your character celebrate.
+
+## 14. Trailer
+
+A 33-second trailer made from real gameplay, with original music and sound. Watch it at https://robotril.github.io/mygallery2.github.io/game/trailer/ (there's also a download, and a version without music if you want to add your own). How it was made, and how to rebuild it, is in `game/trailer/source/`.

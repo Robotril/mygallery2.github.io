@@ -4,6 +4,8 @@ An original first-person shooter with stylized clay characters, playable in any 
 
 **Play:** open `/game/` on this site (for example `https://<user>.github.io/<repo>/game/`).
 
+**Trailer:** `/game/trailer/` (33 seconds, real gameplay, original music). Source and rebuild steps are in `game/trailer/source/`.
+
 ## What's in the game
 
 | Area | Status |
